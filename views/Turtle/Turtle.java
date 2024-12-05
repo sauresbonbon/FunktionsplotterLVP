@@ -18,7 +18,7 @@ enum Font {
     }
 }
 
-class Turtle implements Clerk {
+public class Turtle implements Clerk {
     final String ID;
     LiveView view;
     final int width, height;

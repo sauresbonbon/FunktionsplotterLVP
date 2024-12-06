@@ -11,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-class Text { // Class with static methods for file operations
+public class Text { // Class with static methods for file operations
     static void write(String fileName, String text) {
         try {
             Files.writeString(Path.of(fileName), text);

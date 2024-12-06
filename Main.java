@@ -1,8 +1,14 @@
 import views.Turtle.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class Main {
 
-    int heigth = 600;
+    int height = 600;
     int width = 600;
+    List<Integer> xy = new ArrayList<>();
+
 
     Main() {
 
@@ -13,22 +19,48 @@ public class Main {
         main.drawPlotter();
     }
 
+    void initializePlotter() {
+        //xMin
+        xy.add(-10);
+        //yMin
+        xy.add(-10);
+        //xMax
+        xy.add(10);
+        //yMax
+        xy.add(10);
+    }
+
+    List<Integer> setXY(int xMin, int yMin, int xMax, int yMax) {
+        if(xMin >= xMax || yMin >= yMax) {
+            System.out.println("xMin/yMin muss kleiner als xMax/yMax sein.");
+            System.exit(1);
+        }
+        else {
+            xy.set(0, xMin);
+            xy.set(1, yMin);
+            xy.set(2, xMax);
+            xy.set(3, yMax);
+        }
+        return xy;
+    }
+
+
     public void drawPlotter() {
-        Turtle t = new Turtle(width, heigth);
+        Turtle t = new Turtle(width, height);
         t.moveTo(width/2,0);
-        t.lineTo(width/2,heigth);
-        t.moveTo(0,heigth/2);
-        t.lineTo(width,heigth/2);
+        t.lineTo(width/2,height);
+        t.moveTo(0,height/2);
+        t.lineTo(width,height/2);
 
         t.moveTo(width/2,0);
         t.lineTo((width/2)-10,10);
         t.moveTo(width/2,0);
         t.lineTo((width/2)+10,10);
 
-        t.moveTo(width,heigth/2);
-        t.lineTo(width-10,(heigth/2)-10);
-        t.moveTo(width,heigth/2);
-        t.lineTo(width-10,(heigth/2)+10);
+        t.moveTo(width,height/2);
+        t.lineTo(width-10,(height/2)-10);
+        t.moveTo(width,height/2);
+        t.lineTo(width-10,(height/2)+10);
 
         String bName = "button";
         String sName = "slider";
@@ -38,6 +70,9 @@ public class Main {
         SliderStufen sSt = new SliderStufen(Clerk.view(), 1, 5, sStName);
     }
 
+    /*
+    Button
+     */
     class Button implements Clerk {
         final String ID;
         LiveView view;

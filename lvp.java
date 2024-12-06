@@ -232,4 +232,4 @@ interface Clerk {
 /open views/Dot/Dot.java
 /open views/Input/Slider.java
 
-// LiveView view = Clerk.view();
+ LiveView view = Clerk.view();

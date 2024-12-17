@@ -1,4 +1,13 @@
-class Slider implements Clerk {
+package views.Input;
+
+import View.LiveView;
+import View.Clerk;
+import skills.Text.*;
+
+import java.util.Map;
+import java.util.function.Consumer;
+
+public class Slider implements Clerk {
     final String ID;
     LiveView view;
     Slider(LiveView view, double min, double max, String label) {

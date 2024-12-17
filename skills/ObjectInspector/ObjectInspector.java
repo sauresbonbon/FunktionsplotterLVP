@@ -1,4 +1,4 @@
-// https://gist.github.com/RamonDevPrivate/3bb187ef89b2666b1b1d00232100f5ee
+package skills.ObjectInspector;// https://gist.github.com/RamonDevPrivate/3bb187ef89b2666b1b1d00232100f5ee
 // Author: https://github.com/RamonDevPrivate, Version 1, CC BY-NC-SA
 
 

@@ -1,3 +1,8 @@
+package views.Markdown;
+
+import View.Clerk;
+import View.LiveView;
+
 record Marked(LiveView view) implements Clerk {
     public Marked {
         String onlinePath = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";

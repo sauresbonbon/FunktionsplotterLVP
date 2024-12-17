@@ -1,4 +1,10 @@
-enum Font { 
+package views.Turtle;
+
+
+import View.Clerk;
+import View.LiveView;
+
+enum Font {
     ARIAL("Arial"),
     VERDANA("Verdana"),
     TIMES("Times New Roman"),
@@ -37,7 +43,7 @@ public class Turtle implements Clerk {
     }
 
     Turtle(LiveView view) { this(view, 500, 500); }
-    Turtle(int width, int height) { this(Clerk.view(), width, height); }
+    public Turtle(int width, int height) { this(Clerk.view(), width, height); }
     Turtle() { this(Clerk.view()); }
 
     Turtle penDown() {
@@ -60,7 +66,7 @@ public class Turtle implements Clerk {
         return this;
     }
 
-    Turtle left(double degrees) {
+    public Turtle left(double degrees) {
         Clerk.call(view, "turtle" + ID + ".left(" + degrees + ");");
         return this;
     }
@@ -70,12 +76,12 @@ public class Turtle implements Clerk {
         return this;
     }
 
-    Turtle color(int red, int green, int blue) {
+    public Turtle color(int red, int green, int blue) {
         Clerk.call(view, "turtle" + ID + ".color('rgb(" + (red & 0xFF) + ", " + (green & 0xFF) + ", " + (blue & 0xFF) + ")');");
         return this;
     }
 
-    Turtle color(int rgb) {
+    public Turtle color(int rgb) {
         color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
         return this;
     }
@@ -98,14 +104,14 @@ public class Turtle implements Clerk {
         return this;
     }
 
-    Turtle text(String text) { return text(text, textFont, textSize, textAlign); }
+    public Turtle text(String text) { return text(text, textFont, textSize, textAlign); }
 
-    Turtle moveTo(double x, double y) {
+    public Turtle moveTo(double x, double y) {
         Clerk.call(view, "turtle" + ID + ".moveTo(" + x + ", " + y + ");");
         return this;
     }
 
-    Turtle lineTo(double x, double y) {
+    public Turtle lineTo(double x, double y) {
     Clerk.call(view, "turtle" + ID + ".lineTo(" + x + ", " + y + ");");
     return this;
     }

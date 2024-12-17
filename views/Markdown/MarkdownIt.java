@@ -1,4 +1,9 @@
-record MarkdownIt(LiveView view) implements Clerk {
+package views.Markdown;
+
+import View.Clerk;
+import View.LiveView;
+
+public record MarkdownIt(LiveView view) implements Clerk {
     public MarkdownIt {
         String onlinePath = "https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js";
         String localPath = "views/Markdown/markdown-it.min.js";

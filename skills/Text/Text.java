@@ -1,3 +1,5 @@
+package skills.Text;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,7 +91,7 @@ public class Text { // Class with static methods for file operations
         return result.toString();
     }
 
-    static String fillOut(String template, Map<String, Object> replacements) {
+    public static String fillOut(String template, Map<String, Object> replacements) {
         return fillOut(replacements, template);
     }
 

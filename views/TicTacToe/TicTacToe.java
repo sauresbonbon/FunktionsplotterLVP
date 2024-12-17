@@ -1,6 +1,9 @@
 import java.util.Arrays;
 import java.util.Optional;
 
+import View.LiveView;
+import View.Clerk;
+
 class TicTacToe implements Clerk {
     final String ID;
     final int width, height;

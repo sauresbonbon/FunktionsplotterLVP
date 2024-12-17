@@ -1,3 +1,5 @@
+package skills.RGB;
+
 enum RGB { // https://w3schools.sinsixx.com/css/css_colornames.asp.htm
     AQUA(0x00FFFF),
     BLACK(0x000000),
@@ -34,5 +36,5 @@ enum RGB { // https://w3schools.sinsixx.com/css/css_colornames.asp.htm
     static int blue(int colorCode)  { return  colorCode & 0b11111111;                          }
 
     static String hex(int code) { return String.format("0x%06x", color(code)); }
-    String hex() { return hex(this.colorcode); }
+    String hex() { return hex(this.colorCode); }
 }

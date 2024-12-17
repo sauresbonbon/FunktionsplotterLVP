@@ -1,3 +1,5 @@
+import View.*;
+
 class Dot implements Clerk {
     final String visLibOnlinePath = "https://unpkg.com/vis-network/standalone/umd/vis-network.min.js";
     final String visLibOfflinePath = "views/Dot/vis-network.min.js";

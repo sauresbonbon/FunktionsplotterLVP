@@ -9,11 +9,13 @@ import java.util.Scanner;
 import java.util.function.Consumer;
 
 public class View implements IView {
-    private int height = 600;
-    private int width = 600;
-    int tileSize = 30;
+    private final int height = 600;
+    private final int width = 600;
+    int tileSize;
     int halfWidth = width / 2;
     int halfHeight = height / 2;
+    int margin = 20;
+    int topMargin = 50;
     Turtle t;
     private IController controller;
 
@@ -32,94 +34,114 @@ public class View implements IView {
         controller.initializePlotter();
         t = new Turtle(width, height);
 
-        t.moveTo(halfWidth,0);
-        t.lineTo(halfWidth,height);
-        t.moveTo(0,halfHeight);
-        t.lineTo(width,halfHeight);
+        int xMin = controller.getXY().get(0);
+        int xMax = controller.getXY().get(2);
+        int yMin = controller.getXY().get(1);
+        int yMax = controller.getXY().get(3);
 
-        t.moveTo(halfWidth,0);
-        t.lineTo(halfWidth-10,10);
-        t.moveTo(halfWidth,0);
-        t.lineTo(halfWidth+10,10);
+        int plotWidth = width - 2 * margin;
+        int plotHeight = height - topMargin - margin;
 
-        t.moveTo(width,halfHeight);
-        t.lineTo(width-10,halfHeight-10);
-        t.moveTo(width,halfHeight);
-        t.lineTo(width-10,halfHeight+10);
+        // Rahmen zeichnen
+        t.moveTo(margin, topMargin);
+        t.lineTo(margin + plotWidth, topMargin); // oben
+        t.lineTo(margin + plotWidth, topMargin + plotHeight); // rechts
+        t.lineTo(margin, topMargin + plotHeight); // unten
+        t.lineTo(margin, topMargin); // links
 
-        drawGrid();
-        labelAxis();
+        int xSteps = xMax - xMin;
+        int ySteps = yMax - yMin;
 
-        String bName = "Werte Zurücksetzen";
-        Button b = new Button(Clerk.view(), controller, bName);
+        int maxSteps = Math.max(xSteps, ySteps); // Wir wollen den größten Wert als Referenz verwenden
+        tileSize = Math.min(plotWidth / maxSteps, plotHeight / maxSteps);
+
+        // Achsenmittelpunkte
+        halfWidth = margin + plotWidth / 2;
+        halfHeight = topMargin + plotHeight / 2; // Anpassen für topMargin
+
+        // Zeichnen der Achsen
+        t.moveTo(halfWidth, topMargin);
+        t.lineTo(halfWidth, topMargin + plotHeight);
+        t.moveTo(margin, halfHeight);
+        t.lineTo(margin + plotWidth, halfHeight);
+
+        drawGrid(plotWidth, plotHeight);
+        labelAxis(plotWidth, plotHeight);
+
+        Button resetButton = new Button(Clerk.view(), controller, "Reset");
 
         IntegerInput inputXMin = new IntegerInput(Clerk.view(), "xMin");
         IntegerInput inputYMin = new IntegerInput(Clerk.view(), "yMin");
         IntegerInput inputXMax = new IntegerInput(Clerk.view(), "xMax");
         IntegerInput inputYMax = new IntegerInput(Clerk.view(), "yMax");
+    }
 
-//        String sName = "slider";
-//        String sStName = "slider mit Stufen";
-//        Slider s = new Slider(Clerk.view(), 0,10, sName);
-//        SliderStufen sSt = new SliderStufen(Clerk.view(), 1, 5, sStName);
-    }
-    void drawGrid() {
+    void drawGrid(int plotWidth, int plotHeight) {
         t.color(211, 211, 211);
-        for (int x = tileSize; x < width; x += tileSize) {
-            t.moveTo(halfWidth + x, 0);
-            t.lineTo(halfWidth + x, height);
-            t.moveTo(halfWidth - x, 0);
-            t.lineTo(halfWidth - x, height);
+        for (int x = margin; x < margin + plotWidth; x += tileSize) {
+            t.moveTo(x, topMargin);
+            t.lineTo(x, topMargin + plotHeight);
         }
-        for (int y = tileSize; y < height; y += tileSize) {
-            t.moveTo(0, halfHeight + y);
-            t.lineTo(width, halfHeight + y);
-            t.moveTo(0, halfHeight - y);
-            t.lineTo(width, halfHeight - y);
+        for (int y = topMargin + tileSize; y < topMargin + plotHeight; y += tileSize) {
+            t.moveTo(margin, y);
+            t.lineTo(margin + plotWidth, y);
         }
     }
-    void labelAxis() {
-        t.color(0); // Schwarz für Text
+
+
+    void labelAxis(int plotWidth, int plotHeight) {
+        t.color(0);
         t.left(90);
 
         // Beschriftung der X-Achse (unten am Rand)
         int temp = tileSize;
 
-        // Positive X-Beschriftung
+        // Positive X-Beschriftung (rechts vom Ursprung)
         for (int i = 1; i <= controller.getXY().get(2); i++) {
-            t.moveTo(halfWidth + temp - 5, height - 10);
+            t.moveTo(halfWidth + temp, topMargin + plotHeight + 15);
             t.text(String.valueOf(i));
             temp += tileSize;
         }
 
         temp = tileSize;
-        // Negative X-Beschriftung
-        for (int i = 1; i <= controller.getXY().get(0); i++) { // Startet bei 1
-            t.moveTo(halfWidth - temp - 5, height - 10);
+
+        int negativeX = controller.getXY().get(0);
+        if (negativeX < 0) {
+            negativeX = -negativeX;
+        }
+        // Negative X-Beschriftung (links vom Ursprung)
+        for (int i = 1; i <= negativeX; i++) {
+            t.moveTo(halfWidth - temp, topMargin + plotHeight + 15);
             t.text(String.valueOf(-i));
             temp += tileSize;
         }
 
+        // Beschriftung der Y-Achse (links vom Koordinatensystem)
         temp = tileSize;
-        // Positive Y-Beschriftung
+
+        // Positive Y-Beschriftung (oberhalb des Ursprungs)
         for (int i = 1; i <= controller.getXY().get(3); i++) {
-            t.moveTo(10, halfHeight - temp + 5);
+            t.moveTo(margin - 10, halfHeight - temp + 3);
             t.text(String.valueOf(i));
             temp += tileSize;
         }
 
         temp = tileSize;
+        int negativeY = controller.getXY().get(1);
+        if (negativeY < 0) {
+            negativeY = -negativeY;
+        }
         // Negative Y-Beschriftung
-        for (int i = 1; i <= controller.getXY().get(1); i++) { // Startet bei 1
-            t.moveTo(10, halfHeight + temp + 5);
+        for (int i = 1; i <= negativeY; i++) {
+            t.moveTo(margin - 10, halfHeight + temp + 3);
             t.text(String.valueOf(-i));
             temp += tileSize;
         }
 
         // Beschriftung des Ursprungs (0,0)
-        t.moveTo(5, halfHeight); // Links am Rand für Y-Achse
+        t.moveTo(margin - 10, halfHeight);
         t.text("0");
-        t.moveTo(halfWidth, height - 5); // Unten am Rand für X-Achse
+        t.moveTo(halfWidth, topMargin + plotHeight + 15);
         t.text("0");
     }
 
@@ -186,7 +208,7 @@ public class View implements IView {
             this.view.createResponseContext("/input" + ID, (body) -> {
                 try {
                     int value = Integer.parseInt(body);
-                    delegate.accept(value); // Delegate mit Integer-Wert ausführen
+                    delegate.accept(value);
                 } catch (NumberFormatException e) {
                     System.err.println("Invalid integer input: " + body);
                 }

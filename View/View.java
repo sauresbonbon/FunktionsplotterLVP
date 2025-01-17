@@ -11,11 +11,15 @@ import java.util.function.Consumer;
 public class View implements IView {
     private final int height = 600;
     private final int width = 600;
-    int tileSize;
     int halfWidth = width / 2;
     int halfHeight = height / 2;
+    int plotWidth, plotHeight;
+
+    int tileSize;
+
     int margin = 20;
     int topMargin = 50;
+
     Turtle t;
     private IController controller;
 
@@ -39,8 +43,8 @@ public class View implements IView {
         int yMin = controller.getXY().get(1);
         int yMax = controller.getXY().get(3);
 
-        int plotWidth = width - 2 * margin;
-        int plotHeight = height - topMargin - margin;
+        plotWidth = width - 2 * topMargin;
+        plotHeight = plotWidth;
 
         // Rahmen zeichnen
         t.moveTo(margin, topMargin);
@@ -52,12 +56,16 @@ public class View implements IView {
         int xSteps = xMax - xMin;
         int ySteps = yMax - yMin;
 
-        int maxSteps = Math.max(xSteps, ySteps); // Wir wollen den größten Wert als Referenz verwenden
-        tileSize = Math.min(plotWidth / maxSteps, plotHeight / maxSteps);
+        int xStepSize = plotWidth/xSteps;
+        int yStepSize = plotHeight/ySteps;
+
+        if (xStepSize > yStepSize) {
+            tileSize = xStepSize;
+        } else tileSize = yStepSize;
 
         // Achsenmittelpunkte
         halfWidth = margin + plotWidth / 2;
-        halfHeight = topMargin + plotHeight / 2; // Anpassen für topMargin
+        halfHeight = topMargin + plotHeight / 2;
 
         // Zeichnen der Achsen
         t.moveTo(halfWidth, topMargin);
@@ -65,26 +73,42 @@ public class View implements IView {
         t.moveTo(margin, halfHeight);
         t.lineTo(margin + plotWidth, halfHeight);
 
+
+
         drawGrid(plotWidth, plotHeight);
         labelAxis(plotWidth, plotHeight);
 
+        Clerk.write(Clerk.view(),"Zurücksetzen");
         Button resetButton = new Button(Clerk.view(), controller, "Reset");
 
+        Clerk.write(Clerk.view(), "Grenzen setzen");
         IntegerInput inputXMin = new IntegerInput(Clerk.view(), "xMin");
         IntegerInput inputYMin = new IntegerInput(Clerk.view(), "yMin");
         IntegerInput inputXMax = new IntegerInput(Clerk.view(), "xMax");
         IntegerInput inputYMax = new IntegerInput(Clerk.view(), "yMax");
+
+        SliderStufen parameterCount = new SliderStufen(Clerk.view(), 0,5, "Anzahl Parameter");
+
+        Slider s = new Slider(Clerk.view(),0,10, "Zoom");
+    }
+
+    void generateTileSize() {
+
     }
 
     void drawGrid(int plotWidth, int plotHeight) {
         t.color(211, 211, 211);
-        for (int x = margin; x < margin + plotWidth; x += tileSize) {
+        //Vertikale linien
+        for (int x = margin + tileSize; x < margin + plotWidth; x += tileSize) {
             t.moveTo(x, topMargin);
             t.lineTo(x, topMargin + plotHeight);
         }
+        //horizontal linien
         for (int y = topMargin + tileSize; y < topMargin + plotHeight; y += tileSize) {
             t.moveTo(margin, y);
             t.lineTo(margin + plotWidth, y);
+            System.out.println(tileSize);
+            System.out.println(y);
         }
     }
 
@@ -199,7 +223,11 @@ public class View implements IView {
 
             // HTML-Input-Feld erzeugen
             Clerk.write(view,
-                    "<div><input id='input" + ID + "' type='number' placeholder='" + placeholder + "'></div>");
+                    "<div>" +
+                            "<input id='input" + ID +
+                            "' type='number' placeholder='" + placeholder + "' size = '5'>" +
+                            "</div>");
+
             Clerk.script(view,
                     "const input" + ID + " = document.getElementById('input" + ID + "');");
         }
@@ -244,7 +272,6 @@ public class View implements IView {
             this.view = view;
             ID = Clerk.getHashID(this);
 
-            // Korrektur: label wird korrekt eingebettet
             Clerk.write(view, "<label for='slider" + ID + "'>" + label + "</label>" +
                     "<div><input type='range' id='slider" + ID + "' min='" + min + "' max='" + max + "' step='any'/></div>");
 

@@ -58,7 +58,7 @@ public class Text { // Class with static methods for file operations
     static String cutOut(String fileName, boolean includeStartLabel, boolean includeEndLabel, String... labels) {
         return cutOut(Path.of(fileName), includeStartLabel, includeEndLabel, labels);
     }
-    static String cutOut(String fileName, String... labels) {
+    public static String cutOut(String fileName, String... labels) {
         return cutOut(fileName, false, false, labels);
     }
     static String read(String fileName) {
@@ -95,7 +95,7 @@ public class Text { // Class with static methods for file operations
         return fillOut(replacements, template);
     }
 
-    static String fillOut(String template, Object... replacements) {
+    public static String fillOut(String template, Object... replacements) {
         Map<String, Object> m = new HashMap<>();
         IntStream.range(0, replacements.length)
             .forEach(i -> m.put(Integer.toString(i), replacements[i]));

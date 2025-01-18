@@ -4,6 +4,8 @@ import Model.*;
 import View.IView;
 
 import java.util.List;
+import java.util.function.DoubleFunction;
+import java.util.function.DoubleUnaryOperator;
 
 public class Controller implements IController{
 
@@ -19,17 +21,25 @@ public class Controller implements IController{
     }
 
     public void setXY(int xMin, int yMin, int xMax, int yMax) {
-        model.setXY(xMin, yMin, xMax, yMax);
+        model.setBounds(xMin, yMin, xMax, yMax);
     }
 
     @Override
     public List<Integer> getXY() {
-        return model.getXY();
+        return model.getBounds();
     }
 
     @Override
     public void initializePlotter() {
         model.initializePlotter();
+    }
+
+    public void setFunction(DoubleUnaryOperator f) {
+        model.setFunction(f);
+    }
+
+    public DoubleUnaryOperator getFunction() {
+        return model.getFunction();
     }
 
 }

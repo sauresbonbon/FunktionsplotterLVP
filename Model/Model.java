@@ -2,36 +2,50 @@ package Model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.DoubleFunction;
+import java.util.function.DoubleUnaryOperator;
 
 public class Model implements IModel{
-    List<Integer> xy = new ArrayList<>();
+    List<Integer> bounds = new ArrayList<>();
+    private DoubleUnaryOperator f;
 
     public void initializePlotter() {
         //xMin
-        xy.add(-10);
+        bounds.add(-10);
         //yMin
-        xy.add(-10);
+        bounds.add(-10);
+
         //xMax
-        xy.add(10);
+        bounds.add(10);
         //yMax
-        xy.add(10);
+        bounds.add(10);
     }
 
-    public void setXY(int xMin, int yMin, int xMax, int yMax) {
+    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
         if(xMin >= xMax || yMin >= yMax) {
             System.out.println("xMin/yMin muss kleiner als xMax/yMax sein.");
             System.exit(1);
         }
         else {
-            xy.set(0, xMin);
-            xy.set(1, yMin);
-            xy.set(2, xMax);
-            xy.set(3, yMax);
+            bounds.set(0, xMin);
+            bounds.set(1, yMin);
+            bounds.set(2, xMax);
+            bounds.set(3, yMax);
         }
     }
 
+
     @Override
-    public List<Integer> getXY() {
-        return xy;
+    public List<Integer> getBounds() {
+        return bounds;
     }
+
+    public void setFunction(DoubleUnaryOperator f) {
+        this.f = f;
+    }
+    public DoubleUnaryOperator getFunction() {
+        return f;
+    }
+
+
 }

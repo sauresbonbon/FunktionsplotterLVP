@@ -29,7 +29,7 @@ public class Turtle implements Clerk {
     LiveView view;
     final int width, height;
     Font textFont = Font.SANSSERIF;
-    double textSize = 10;
+    public double textSize = 10;
     Font.Align textAlign = Font.Align.CENTER;
 
     Turtle(LiveView view, int width, int height) {
@@ -71,7 +71,7 @@ public class Turtle implements Clerk {
         return this;
     }
 
-    Turtle right(double degrees) {
+    public Turtle right(double degrees) {
         Clerk.call(view, "turtle" + ID + ".right(" + degrees + ");");
         return this;
     }

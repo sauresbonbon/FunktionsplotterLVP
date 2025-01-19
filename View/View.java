@@ -4,6 +4,7 @@ import Controller.*;
 import skills.Text.*;
 import views.Turtle.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
@@ -12,13 +13,13 @@ public class View implements IView {
     private final int height = 600;
     private final int width = 600;
     int margin = 50;
-    int topMargin = 50;
 
     int halfWidth = width / 2;
     int halfHeight = height / 2;
-    int plotWidth = width - 2 * topMargin;
+    int plotWidth = width - 2 * margin;
     int plotHeight = plotWidth;
     int tileSize;
+    boolean useParameter = false;
 
     int xMin, xMax, yMin, yMax;
 
@@ -42,197 +43,220 @@ public class View implements IView {
         t = new Turtle(width, height);
 
         t.left(90);
-        t.moveTo(halfWidth, topMargin/2);
+        t.moveTo(halfWidth, margin / 2);
         t.textSize = 20;
         t.text("Funktionsplotter");
         t.textSize = 10;
         t.right(90);
-
-        controller.setXY(-5, -5, 5, 5);
 
         generateTileSize();
         drawPlotterArea();
         drawGrid(plotWidth, plotHeight);
         labelAxis(plotWidth, plotHeight);
         drawUI();
-
-        controller.setFunction(Math::cos);
-        drawFunction();
-
-        function = controller.getFunction();
-
-
     }
 
 
+    /*
+        Fügt Button, Slider und Textfelder der UI hinzu
+     */
     void drawUI() {
+        // Textfeld und Button für die zu zeichnende Funktion
         TextInput functionInput = new TextInput(Clerk.view(), "f(x)");
+        Button functionButton = new Button(Clerk.view(), controller, "Generate");
+        functionButton.attachTo(() -> {
+            System.out.println(functionInput.getValue());
+            controller.setFunction(x -> (x * x) + 1);
+            drawFunction();
+        });
 
-        Button plotButton = new Button(Clerk.view(), controller, "Generate");
-
-        Clerk.write(Clerk.view(),"Zurücksetzen");
-        Button resetButton = new Button(Clerk.view(), controller, "Reset");
-
+        // Input und Button für das Setzen von den Grenzen des Koordinatensystems
         Clerk.write(Clerk.view(), "Grenzen setzen");
-        IntegerInput inputXMin = new IntegerInput(Clerk.view(), "xMin");
-        IntegerInput inputYMin = new IntegerInput(Clerk.view(), "yMin");
-        IntegerInput inputXMax = new IntegerInput(Clerk.view(), "xMax");
-        IntegerInput inputYMax = new IntegerInput(Clerk.view(), "yMax");
+        IntegerInput inputXMin = new IntegerInput(Clerk.view(), "xMin", controller.getXY().get(0));
+        inputXMin.attachTo(value -> {
+            controller.setXY(value, controller.getXY().get(1), controller.getXY().get(2), controller.getXY().get(3));
+            System.out.println("Eingegebener Wert: " + value);
+        });
+        IntegerInput inputXMax = new IntegerInput(Clerk.view(), "xMax", controller.getXY().get(2));
+        IntegerInput inputYMin = new IntegerInput(Clerk.view(), "yMin", controller.getXY().get(1));
+        IntegerInput inputYMax = new IntegerInput(Clerk.view(), "yMax", controller.getXY().get(3));
+        Button setBoundsButton = new Button(Clerk.view(), controller, "Set bounds");
+        setBoundsButton.attachTo(() -> {
 
-        SliderStufen parameterCount = new SliderStufen(Clerk.view(), 0,5, "Anzahl Parameter");
+        });
 
+        // Checkbox und Input für Interval der Parameter
+        Checkbox parameterCheckbox = new Checkbox(Clerk.view(), "Solve function as f(x;a) with");
+        IntegerInput parameterFrom = new IntegerInput(Clerk.view(), "from", 1);
+        IntegerInput parameterTo = new IntegerInput(Clerk.view(), "to", 5);
+        parameterCheckbox.attachTo(value -> {
+            value = useParameter;
+            useParameter = !value;
+        });
+
+        // Slider für den Zoom
         Slider s = new Slider(Clerk.view(),0,10, "Zoom");
 
     }
 
+    /*
+        Zeichnet den Rahmen und die Achsen
+     */
     public void drawPlotterArea() {
-
-
-        // Rahmen zeichnen
-        t.moveTo(margin, topMargin);
-        t.lineTo(margin + plotWidth, topMargin); // oben
-        t.lineTo(margin + plotWidth, topMargin + plotHeight); // rechts
-        t.lineTo(margin, topMargin + plotHeight); // unten
-        t.lineTo(margin, topMargin); // links
-
-
         // Achsenmittelpunkte
         halfWidth = margin + plotWidth / 2;
-        halfHeight = topMargin + plotHeight / 2;
+        halfHeight = margin + plotHeight / 2;
 
-        // Zeichnen der Achsen
-        t.moveTo(halfWidth, topMargin);
-        t.lineTo(halfWidth, topMargin + plotHeight);
+        //Achsen
+        t.moveTo(halfWidth, margin);
+        t.lineTo(halfWidth, margin + plotHeight); //y-Achse
         t.moveTo(margin, halfHeight);
-        t.lineTo(margin + plotWidth, halfHeight);
+        t.lineTo(margin + plotWidth, halfHeight); //x-Achse
+
+        // Rahmen
+        t.moveTo(margin, margin);
+        t.lineTo(margin + plotWidth, margin); // oben
+        t.lineTo(margin + plotWidth, margin + plotHeight); // rechts
+        t.lineTo(margin, margin + plotHeight); // unten
+        t.lineTo(margin, margin); // links
     }
 
+    /*
+        Methode zum berechnen der Kästchengröße
+     */
     void generateTileSize() {
-        xMin = controller.getXY().get(0);
-        xMax = controller.getXY().get(2);
-        yMin = controller.getXY().get(1);
-        yMax = controller.getXY().get(3);
+        List<Integer> coordinates = controller.getXY();
+        xMin = coordinates.get(0);
+        xMax = coordinates.get(2);
+        yMin = coordinates.get(1);
+        yMax = coordinates.get(3);
 
-
+        // Anzahl Schritte berechnen
         int xSteps = xMax - xMin;
         int ySteps = yMax - yMin;
 
-        int xStepSize = plotWidth/xSteps;
-        int yStepSize = plotHeight/ySteps;
+        // Schrittgrößen berechnen
+        int xStepSize = plotWidth / xSteps;
+        int yStepSize = plotHeight / ySteps;
 
-        if (xStepSize > yStepSize) {
-            tileSize = xStepSize;
-        } else tileSize = yStepSize;
-
-//        System.out.println("xMin: " + xMin + ", xMax: " + xMax + ", yMin: " + yMin + ", yMax: " + yMax);
-//        System.out.println("xSteps: " + xSteps + ", ySteps: " + ySteps);
-//        System.out.println("plotWidth: " + plotWidth + ", plotHeight: " + plotHeight);
-//        System.out.println("xStepSize: " + xStepSize + ", yStepSize: " + yStepSize);
-//        System.out.println("tileSize: " + tileSize);
-
+        tileSize = xStepSize > yStepSize ? xStepSize : yStepSize;
     }
 
+    /*
+        Zeichnet die Kästchen des Koordinatensystems
+     */
     void drawGrid(int plotWidth, int plotHeight) {
         t.color(211, 211, 211);
-        //Vertikale linien
-        for (int x = margin + tileSize; x < margin + plotWidth; x += tileSize) {
-            t.moveTo(x, topMargin);
-            t.lineTo(x, topMargin + plotHeight);
-        }
-        //horizontal linien
-        for (int y = topMargin + tileSize; y < topMargin + plotHeight; y += tileSize) {
-            t.moveTo(margin, y);
-            t.lineTo(margin + plotWidth, y);
-        }
-    }
 
-    void drawFunction() {
-        if (controller.getFunction() == null) {
-            return;
-        }
-        DoubleUnaryOperator function = controller.getFunction();
+        int right = margin + plotWidth;
+        int bottom = margin + plotHeight;
 
-        t.color(0, 0, 255); // Blau für die Funktion
-
-        double step = 0.1; // Schrittweite für das Zeichnen der Punkte
-        double scaleX = (double) plotWidth / (controller.getXY().get(2) - controller.getXY().get(0));
-        double scaleY = (double) plotHeight / (controller.getXY().get(3) - controller.getXY().get(1));
-
-        for (double x = controller.getXY().get(0); x <= controller.getXY().get(2); x += step) {
-            double y = function.applyAsDouble(x);
-
-            if (y >= controller.getXY().get(1) && y <= controller.getXY().get(3)) {
-                int screenX = (int) (halfWidth + x * scaleX);
-                int screenY = (int) (halfHeight - y * scaleY);
-                t.moveTo(screenX, screenY);
-
-                // Linie zeichnen
-                double nextY = function.applyAsDouble(x + step);
-                if (nextY >= controller.getXY().get(1) && nextY <= controller.getXY().get(3)) {
-                    int nextScreenX = (int) (halfWidth + (x + step) * scaleX);
-                    int nextScreenY = (int) (halfHeight - nextY * scaleY);
-                    t.lineTo(nextScreenX, nextScreenY);
-                }
+        // Gitterlinien zeichnen
+        for (int i = margin + tileSize; i < Math.max(right, bottom); i += tileSize) {
+            if (i < right) { // Vertikale Linie
+                t.moveTo(i, margin);
+                t.lineTo(i, bottom);
+            }
+            if (i < bottom) { // Horizontale Linie
+                t.moveTo(margin, i);
+                t.lineTo(right, i);
             }
         }
     }
 
+    /*
+        Zeichnet die Funktionen in das Koordinatensystem
+     */
+    void drawFunction() {
+        DoubleUnaryOperator function = controller.getFunction();
+        if (controller.getFunction() == null) return;
 
+        t.color(0, 0, 255);
+
+        double step = 0.1; // Schrittweite für das Zeichnen
+        double scaleX = (double) plotWidth / (controller.getXY().get(2) - controller.getXY().get(0));
+        double scaleY = (double) plotHeight / (controller.getXY().get(3) - controller.getXY().get(1));
+
+        double xMin = controller.getXY().get(0);
+        double xMax = controller.getXY().get(2);
+        double yMin = controller.getXY().get(1);
+        double yMax = controller.getXY().get(3);
+
+        for (double x = xMin; x <= xMax; x += step) {
+            double y = function.applyAsDouble(x);
+
+            if (y < yMin || y > yMax) continue; // Punkt außerhalb des sichtbaren Bereichs
+
+            int screenX = (int) (halfWidth + x * scaleX);
+            int screenY = (int) (halfHeight - y * scaleY);
+
+            double nextY = function.applyAsDouble(x + step);
+            if (nextY >= yMin && nextY <= yMax) {
+                int nextScreenX = (int) (halfWidth + (x + step) * scaleX);
+                int nextScreenY = (int) (halfHeight - nextY * scaleY);
+
+                t.moveTo(screenX, screenY);
+                t.lineTo(nextScreenX, nextScreenY);
+            }
+        }
+    }
+
+    /*
+
+     */
     void labelAxis(int plotWidth, int plotHeight) {
-        t.color(0);
-        t.left(90);
+        t.color(0); // Textfarbe Schwarz
+        t.left(90); // Textausrichtung nach links rotieren
 
-        // Beschriftung der X-Achse (unten am Rand)
+        // X-Achse
         int temp = tileSize;
+        int xMin = controller.getXY().get(0);
+        int xMax = controller.getXY().get(2);
 
         // Positive X-Beschriftung (rechts vom Ursprung)
-        for (int i = 1; i <= controller.getXY().get(2); i++) {
-            t.moveTo(halfWidth + temp, topMargin + plotHeight + 15);
+        for (int i = 1; i <= xMax; i++) {
+            t.moveTo(halfWidth + temp, margin + plotHeight + 15);
             t.text(String.valueOf(i));
             temp += tileSize;
         }
 
-        temp = tileSize;
-
-        int negativeX = controller.getXY().get(0);
-        if (negativeX < 0) {
-            negativeX = -negativeX;
-        }
         // Negative X-Beschriftung (links vom Ursprung)
+        int negativeX = Math.abs(xMin); // Betrag der negativen X-Werte
+        temp = tileSize;
         for (int i = 1; i <= negativeX; i++) {
-            t.moveTo(halfWidth - temp, topMargin + plotHeight + 15);
+            t.moveTo(halfWidth - temp, margin + plotHeight + 15);
             t.text(String.valueOf(-i));
             temp += tileSize;
         }
 
-        // Beschriftung der Y-Achse (links vom Koordinatensystem)
+        // Y-Achse
         temp = tileSize;
+        int yMin = controller.getXY().get(1);
+        int yMax = controller.getXY().get(3);
 
         // Positive Y-Beschriftung (oberhalb des Ursprungs)
-        for (int i = 1; i <= controller.getXY().get(3); i++) {
+        for (int i = 1; i <= yMax; i++) {
             t.moveTo(margin - 10, halfHeight - temp + 3);
             t.text(String.valueOf(i));
             temp += tileSize;
         }
 
-        temp = tileSize;
-        int negativeY = controller.getXY().get(1);
-        if (negativeY < 0) {
-            negativeY = -negativeY;
-        }
         // Negative Y-Beschriftung
+        int negativeY = Math.abs(yMin); // Betrag der negativen Y-Werte
+        temp = tileSize;
         for (int i = 1; i <= negativeY; i++) {
             t.moveTo(margin - 10, halfHeight + temp + 3);
             t.text(String.valueOf(-i));
             temp += tileSize;
         }
 
-        // Beschriftung des Ursprungs (0,0)
+        // Ursprung (0,0)
         t.moveTo(margin - 10, halfHeight);
         t.text("0");
-        t.moveTo(halfWidth, topMargin + plotHeight + 15);
+        t.moveTo(halfWidth, margin + plotHeight + 15);
         t.text("0");
     }
+
 
 
 }
@@ -270,6 +294,55 @@ class TextInput implements Clerk {
     }
 }
 
+class Checkbox implements Clerk {
+    final String ID;
+    LiveView view;
+
+    Checkbox(LiveView view, String label) {
+        this.view = view;
+        ID = Clerk.getHashID(this);
+
+        // HTML für Checkbox hinzufügen
+        Clerk.write(view, "<div>" +
+                "<input type='checkbox' id='checkbox" + ID + "'/>" +
+                "<label for='checkbox" + ID + "'>" + label + "</label>" +
+                "</div>");
+
+        // JavaScript für Checkbox hinzufügen
+        Clerk.script(view, "const checkbox" + ID + " = document.getElementById('checkbox" + ID + "');");
+    }
+
+    Checkbox attachTo(Consumer<Boolean> delegate) {
+        this.view.createResponseContext("/checkbox" + ID, (body) -> {
+            try {
+                boolean checked = Boolean.parseBoolean(body); // Den Status der Checkbox auslesen (true/false)
+                delegate.accept(checked); // Den Wert an den Delegate übergeben
+            } catch (Exception e) {
+                System.err.println("Fehler beim Verarbeiten des Checkbox-Status: " + body);
+            }
+        }, ID);
+
+        // JavaScript-Code, der bei einer Änderung der Checkbox den Status sendet
+        Clerk.script(view, Text.fillOut(
+                """
+                checkbox${0}.addEventListener('change', () => {
+                    if (locks.includes('${0}')) return;
+                    locks.push('${0}');
+                    const checked = checkbox${0}.checked; // Status der Checkbox ermitteln
+                    console.log('checkbox${0}: checked changed to ' + checked);
+                    fetch('checkbox${0}', {
+                        method: 'post',
+                        body: checked.toString(), // Den Status als String (true/false) senden
+                    }).catch(console.error).finally(() => {
+                        locks = locks.filter(lock => lock !== '${0}');
+                    });
+                });
+                """, Map.of("0", ID)));
+
+        return this;
+    }
+}
+
 
 
 
@@ -292,8 +365,6 @@ class Button implements Clerk {
 
     Button attachTo(Runnable delegate) {
         this.view.createResponseContext("/button" + ID, (body) -> {
-            controller.setFunction(x -> (x * x) +1);
-            v.drawFunction();
             delegate.run();
         }, ID);
         Clerk.script(view, String.format(
@@ -310,21 +381,22 @@ class IntegerInput implements Clerk {
     final String ID;
     LiveView view;
 
-    IntegerInput(LiveView view, String placeholder) {
+    IntegerInput(LiveView view, String placeholder, int defaultValue) {
         this.view = view;
         ID = Clerk.getHashID(this);
 
         Clerk.write(view,
                 "<div>" +
                         "<input id='input" + ID +
-                        "' type='number' placeholder='" + placeholder + "' size = '5'>" +
+                        "' type='number' placeholder='" + placeholder +
+                        "' value='" + defaultValue + "' size='5'>" +
                         "</div>");
 
         Clerk.script(view,
                 "const input" + ID + " = document.getElementById('input" + ID + "');");
     }
 
-    IntegerInput attachTo(java.util.function.Consumer<Integer> delegate) {
+    IntegerInput attachTo(Consumer<Integer> delegate) {
         this.view.createResponseContext("/input" + ID, (body) -> {
             try {
                 int value = Integer.parseInt(body);
@@ -334,24 +406,26 @@ class IntegerInput implements Clerk {
             }
         }, ID);
 
-        Clerk.script(view, Text.fillOut(
-                """
-                input${0}.addEventListener('change', () => {
-                    if (locks.includes('${0}')) return;
-                    locks.push('${0}');
-                    const value = input${0}.value;
-                    console.log(input${0}: value changed to ${value});
-                    fetch('input${0}', {
-                        method: 'post',
-                        body: value,
-                    }).catch(console.error).finally(() => {
-                        locks = locks.filter(lock => lock !== '${0}');
-                    });
-                });
-                """, Map.of("0", ID)));
+        Clerk.script(view,
+                "const input" + ID + " = document.getElementById('input" + ID + "');" +
+                        "if (input" + ID + ") {" +
+                        "    input" + ID + ".addEventListener('change', () => {" +
+                        "        const value = input" + ID + ".value;" +
+                        "        console.log('input" + ID + ": value changed to ' + value);" +
+                        "        fetch('input" + ID + "', {" +
+                        "            method: 'post'," +
+                        "            body: value," +  // Der Wert wird direkt als Body gesendet
+                        "        }).catch(console.error);" +
+                        "    });" +
+                        "} else {" +
+                        "    console.error('Input field not found for ID: ' + '" + ID + "');" +
+                        "}"
+        );
+
         return this;
     }
 }
+
 
 /*
 Normaler Slider

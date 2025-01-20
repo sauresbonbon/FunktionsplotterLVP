@@ -22,9 +22,11 @@ public class Model implements IModel{
     }
 
     public void setBounds(int xMin, int yMin, int xMax, int yMax) {
-        if(xMin >= xMax || yMin >= yMax) {
-            System.out.println("xMin/yMin muss kleiner als xMax/yMax sein.");
-            System.exit(1);
+        if(xMin >= xMax) {
+            throw new IllegalArgumentException("xMin muss kleiner als xMax sein. (xMin = " + xMin + ", xMax = " + xMax + ")");
+        }
+        if(yMin >= yMax) {
+            throw new IllegalArgumentException("yMin muss kleiner als yMax sein. (yMin = " + yMin + ", yMax = " + yMax + ")");
         }
         else {
             bounds.set(0, xMin);

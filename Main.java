@@ -14,6 +14,6 @@ public class Main {
         controller.setModel(model);
         view.setController(controller);
 
-        view.drawPlotter();
+        view.draw();
     }
 }

@@ -86,12 +86,12 @@ public class Turtle implements Clerk {
         return this;
     }
 
-    Turtle lineWidth(double width) {
+    public Turtle lineWidth(double width) {
         Clerk.call(view, "turtle" + ID + ".lineWidth('" + width + "');");
         return this;
     }
 
-    Turtle reset() {
+    public Turtle reset() {
         Clerk.call(view, "turtle" + ID + ".reset();");
         return this;
     }

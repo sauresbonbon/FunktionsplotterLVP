@@ -20,7 +20,7 @@ public class Controller implements IController{
         this.model = model;
     }
 
-    public void setXY(int xMin, int yMin, int xMax, int yMax) {
+    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
         model.setBounds(xMin, yMin, xMax, yMax);
     }
 

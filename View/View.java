@@ -20,6 +20,7 @@ public class View implements IView {
     int plotHeight = plotWidth;
     int tileSizeX, tileSizeY;
     boolean useParameter = false;
+    int zoomValue;
 
     int xMin, xMax, yMin, yMax;
 
@@ -71,8 +72,11 @@ public class View implements IView {
         setupZoomSlider();
     }
 
+    /*
+        Initialisiert das Eingabefeld und den Button für die Funktionseingabe,
+        um eine mathematische Funktion zu definieren und anzuzeigen.
+     */
     private void setupFunctionInput() {
-        // Textfeld und Button für die zu zeichnende Funktion
         TextInput functionInput = new TextInput(Clerk.view(), "f(x)");
         Button functionButton = new Button(Clerk.view(), controller, "Generate");
         functionButton.attachTo(() -> {
@@ -82,31 +86,41 @@ public class View implements IView {
         });
     }
 
+    /*
+        Initialisiert die Eingabe- und Steuerungselemente,
+        um die Begrenzungen (xMin, xMax, yMin, yMax) des Koordinatensystems
+        festzulegen und diese auf das Koordinatensystem anzuwenden.
+     */
     private void setupBoundsInput() {
         Clerk.write(Clerk.view(), "Grenzen setzen");
 
-        IntegerInput inputXMin = createIntegerInput("xMin", controller.getXY().get(0), value -> xMin = Integer.parseInt(value));
-        IntegerInput inputXMax = createIntegerInput("xMax", controller.getXY().get(2), value -> xMax = Integer.parseInt(value));
-        IntegerInput inputYMin = createIntegerInput("yMin", controller.getXY().get(1), value -> yMin = Integer.parseInt(value));
-        IntegerInput inputYMax = createIntegerInput("yMax", controller.getXY().get(3), value -> yMax = Integer.parseInt(value));
+        createIntegerInput("xMin", controller.getXY().get(0), value -> xMin = Integer.parseInt(value));
+        createIntegerInput("xMax", controller.getXY().get(2), value -> xMax = Integer.parseInt(value));
+        createIntegerInput("yMin", controller.getXY().get(1), value -> yMin = Integer.parseInt(value));
+        createIntegerInput("yMax", controller.getXY().get(3), value -> yMax = Integer.parseInt(value));
 
         Button setBoundsButton = new Button(Clerk.view(), controller, "Set bounds");
         setBoundsButton.attachTo(() -> {
-            controller.setXY(xMin, yMin, xMax, yMax);
-            System.out.println("Grenzen gesetzt: " + controller.getXY());
+            controller.setBounds(xMin, yMin, xMax, yMax);
             t.reset();
             drawPlotter();
         });
     }
 
+    /*
+        Erstellt ein IntegerInput
+     */
     private IntegerInput createIntegerInput(String label, int defaultValue, Consumer<String> onChange) {
         IntegerInput input = new IntegerInput(Clerk.view(), label, defaultValue);
         input.attachTo(onChange);
         return input;
     }
 
+    /*
+        Erstellt eine Checkbox und Eingabefelder für die Definition eines Parameter-Intervalls.
+        Wenn die Checkbox aktiviert wird, wird der Parameterbereich für die Funktion f(x;a) gesetzt.
+     */
     private void setupParameterInput() {
-        // Checkbox und Input für Intervall der Parameter
         Checkbox parameterCheckbox = new Checkbox(Clerk.view(), "Solve function as f(x;a) with");
         IntegerInput parameterFrom = new IntegerInput(Clerk.view(), "from", 1);
         IntegerInput parameterTo = new IntegerInput(Clerk.view(), "to", 5);
@@ -116,14 +130,43 @@ public class View implements IView {
         });
     }
 
+    /*
+        Erstellt einen Slider zur Einstellung des Zooms und ruft die zoom() Methode auf.
+     */
     private void setupZoomSlider() {
-        // Slider für den Zoom
-        SliderStufen s = new SliderStufen(Clerk.view(),0,5, "Zoom", 0);
+        SliderStufen s = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
+        zoom(s);
+    }
+
+    /*
+        Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
+     */
+    void zoom(SliderStufen s) {
         s.attachTo(response -> {
-            System.out.println("Zoom: " + response);
-            controller.setXY(xMin-1,yMin-1,xMax-1,yMax-1);
+            int delta = (Integer.parseInt(response) - zoomValue);
+
+            if (delta > 0) {
+                // Wenn der Slider-Wert steigt (Rauszoomen),
+                // "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
+                xMin += (xMin == 0 ? 0 : 1);
+                yMin += (yMin == 0 ? 0 : 1);
+                xMax -= (xMax == 0 ? 0 : 1);
+                yMax -= (yMax == 0 ? 0 : 1);
+            } else if (delta < 0) {
+                // Wenn der Slider-Wert sinkt (Reinzoomen),
+                // verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
+                xMin -= (xMin == 0 ? 0 : 1);
+                yMin -= (yMin == 0 ? 0 : 1);
+                xMax += (xMax == 0 ? 0 : 1);
+                yMax += (yMax == 0 ? 0 : 1);
+            }
+
+            controller.setBounds(xMin, yMin, xMax, yMax);
+
             t.reset();
             drawPlotter();
+
+            zoomValue = Integer.parseInt(response);
         });
     }
 
@@ -302,7 +345,6 @@ class TextInput implements Clerk {
     TextInput(LiveView view, String placeholder) {
         this.view = view;
         ID = Clerk.getHashID(this);
-
 
         Clerk.write(view,
                 "<div>" +
@@ -494,7 +536,7 @@ class SliderStufen implements Clerk {
     final String ID;
     LiveView view;
 
-    SliderStufen(LiveView view, double min, double max, String label, int defaultValue) {
+    SliderStufen(LiveView view, double min, double max, String label, int defaultValue, int zoomValue) {
         this.view = view;
         ID = Clerk.getHashID(this);
 

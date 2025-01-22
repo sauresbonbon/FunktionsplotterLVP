@@ -17,7 +17,8 @@ public class View {
     int margin = 50;
     List<Integer> bounds = new ArrayList<>();
     private DoubleUnaryOperator f;
-    Function function1, function2, function3;;
+    Function function1, function2, function3;
+    MathBib mathbib = new MathBib();
 
     int halfWidth = width / 2;
     int halfHeight = height / 2;
@@ -27,14 +28,16 @@ public class View {
     boolean useParameter = false;
     int zoomValue;
     List<Integer> ogCoordinates;
+    List<Integer> parameters = new ArrayList<>();
 
     int xMin, xMax, yMin, yMax;
+    int from, to;
 
-    private Turtle t;
+    private Turtle t1,t2;
 
     //-------------------------------Initialize--------------------------//
 
-    public void initializePlotter() {
+    void initializeBounds() {
         //xMin
         bounds.add(-10);
         //yMin
@@ -45,12 +48,11 @@ public class View {
         //yMax
         bounds.add(10);
     }
-
-    void initializeFunctions() {
-
-
+    void initializeParameters() {
+        for (int i = 1; i <= 5; i++) {
+            parameters.add(i);
+        }
     }
-
     //----------------------------draw-methods--------------------------//
 
     public void draw() {
@@ -60,30 +62,14 @@ public class View {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        initializePlotter();
-        initializeFunctions();
+        initializeBounds();
+        initializeParameters();
         ogCoordinates = getBounds();
-        t = new Turtle(width, height);
-
-        t.left(90);
-        t.moveTo(halfWidth, (double) margin / 2);
-        t.textSize = 20;
-        t.text("Funktionsplotter");
-        t.textSize = 10;
-        t.right(90);
+        t1 = new Turtle(width, height);
+//        t2 = new Turtle(width, height);
 
         drawPlotter();
         drawUI();
-    }
-
-    /*
-        Fügt Button, Slider und Textfelder der UI hinzu
-     */
-    void drawUI() {
-        setupFunctionInput();
-        setupBoundsInput();
-        setupParameterInput();
-        setupZoomSlider();
     }
 
     /*
@@ -94,18 +80,37 @@ public class View {
         drawGrid(plotWidth, plotHeight);
         drawPlotterArea();
         labelAxis();
-        if (function1 != null) drawFunction(function1);
+        if (function1 != null) {
+            if(useParameter) {
+                for (int i = 0; i < to-from; i++) {
+                    final int parameterValue = parameters.get(i);
+                    function1.setFunction(function1.getFunction().andThen(x -> function1.function.applyAsDouble(x + parameterValue)));
+                }
+            }
+            drawFunction(function1);
+        }
         if (function2 != null) drawFunction(function2);
         if (function3 != null) drawFunction(function3);
 
     }
+
+    /*
+        Fügt Button, Slider und Textfelder der UI hinzu
+     */
+    void drawUI() {
+        setupFunctions();
+        setupBoundsInput();
+        setupParameterInput();
+        setupZoomSlider();
+    }
+
 
 
     /*
         Zeichnet den Rahmen und die Achsen
      */
     public void drawPlotterArea() {
-        t.color(0);
+        t1.color(0);
         // Grenzen abrufen
         xMin = getBounds().get(0);
         xMax = getBounds().get(2);
@@ -121,19 +126,19 @@ public class View {
         halfHeight = margin + plotHeight - (int) ((-yMin / yRange) * plotHeight);
 
         // Achsen zeichnen
-        t.lineWidth(2);
-        t.moveTo(halfWidth, margin); // y-Achse
-        t.lineTo(halfWidth, margin + plotHeight);
-        t.moveTo(margin, halfHeight); // x-Achse
-        t.lineTo(margin + plotWidth, halfHeight);
-        t.lineWidth(1);
+        t1.lineWidth(2);
+        t1.moveTo(halfWidth, margin); // y-Achse
+        t1.lineTo(halfWidth, margin + plotHeight);
+        t1.moveTo(margin, halfHeight); // x-Achse
+        t1.lineTo(margin + plotWidth, halfHeight);
+        t1.lineWidth(1);
 
         // Rahmen zeichnen
-        t.moveTo(margin, margin); // oben
-        t.lineTo(margin + plotWidth, margin); // rechts
-        t.lineTo(margin + plotWidth, margin + plotHeight); // unten
-        t.lineTo(margin, margin + plotHeight); // links
-        t.lineTo(margin, margin); // zurück zum Startpunkt
+        t1.moveTo(margin, margin); // oben
+        t1.lineTo(margin + plotWidth, margin); // rechts
+        t1.lineTo(margin + plotWidth, margin + plotHeight); // unten
+        t1.lineTo(margin, margin + plotHeight); // links
+        t1.lineTo(margin, margin); // zurück zum Startpunkt
     }
 
 
@@ -141,7 +146,7 @@ public class View {
         Zeichnet die Kästchen des Koordinatensystems
     */
     void drawGrid(int plotWidth, int plotHeight) {
-        t.color(211, 211, 211);
+        t1.color(211, 211, 211);
 
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
@@ -155,25 +160,25 @@ public class View {
         // Vertikale Linien zeichnen (X-Achse)
         for (int i = 0; i <= xRange; i++) {
             int x = (int) (margin + i * pixelPerX);
-            t.moveTo(x, margin);
-            t.lineTo(x, bottom);
+            t1.moveTo(x, margin);
+            t1.lineTo(x, bottom);
         }
 
         // Horizontale Linien zeichnen (Y-Achse)
         for (int i = 0; i <= yRange; i++) {
             int y = (int) (margin + i * pixelPerY);
-            t.moveTo(margin, y);
-            t.lineTo(right, y);
+            t1.moveTo(margin, y);
+            t1.lineTo(right, y);
         }
     }
 
 
     /*
-        Zeichnet die Funktionen in das Koordinatensystem
+        Zeichnet die Funktion in das Koordinatensystem
      */
     void drawFunction(Function function) {
 
-        t.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
+        t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
         double step = 0.1;
         double scaleX = (double) plotWidth / (getBounds().get(2) - getBounds().get(0));
         double scaleY = (double) plotHeight / (getBounds().get(3) - getBounds().get(1));
@@ -182,59 +187,121 @@ public class View {
             double y = function.function.applyAsDouble(x);
             if (y < yMin || y > yMax) continue;
 
-            int screenX = (int) (halfWidth + x * scaleX);
-            int screenY = (int) (halfHeight - y * scaleY);
+            double screenX = (halfWidth + x * scaleX);
+            double screenY = (halfHeight - y * scaleY);
 
             double nextY = function.function.applyAsDouble(x + step);
             if (nextY >= yMin && nextY <= yMax) {
-                int nextScreenX = (int) (halfWidth + (x + step) * scaleX);
-                int nextScreenY = (int) (halfHeight - nextY * scaleY);
+                double nextScreenX = (halfWidth + (x + step) * scaleX);
+                double nextScreenY = (halfHeight - nextY * scaleY);
 
-                t.moveTo(screenX, screenY);
-                t.lineTo(nextScreenX, nextScreenY);
+                t1.moveTo(screenX, screenY);
+                t1.lineTo(nextScreenX, nextScreenY);
             }
         }
 
     }
 
+    /*
+        Beschriftet die Achsen
+    */
+    void labelAxis() {
+        t1.color(0);
+        t1.left(90);
+
+        // X-Achse
+        int xMin = getBounds().get(0);
+        int xMax = getBounds().get(2);
+
+        // X-Beschriftung
+        for (int i = xMin; i <= xMax; i++) {
+            int xPos = halfWidth + i * tileSizeX;
+            t1.moveTo(xPos, margin + plotHeight + 15);
+            t1.text(String.valueOf(i));
+        }
+
+        // Y-Achse
+        int yMin = getBounds().get(1);
+        int yMax = getBounds().get(3);
+
+        // Y-Beschriftung
+        for (int i = yMin; i <= yMax; i++) {
+            int yPos = halfHeight - i * tileSizeY;
+            t1.moveTo(margin - 10, yPos + 3);
+            t1.text(String.valueOf(i));
+        }
+
+        // Ursprung (0,0)
+        t1.moveTo(margin - 10, halfHeight);
+        t1.text("0");
+        t1.moveTo(halfWidth, margin + plotHeight + 15);
+        t1.text("0");
+    }
+
+
     //-----------------------------setup-methods------------------------------//
+
+    /*
+      Methode zum berechnen der Kästchengröße
+   */
+    void generateTileSizes() {
+        List<Integer> coordinates = getBounds();
+        xMin = coordinates.get(0);
+        xMax = coordinates.get(2);
+        yMin = coordinates.get(1);
+        yMax = coordinates.get(3);
+
+        // Anzahl der Schritte berechnen
+        int xSteps = xMax - xMin;
+        int ySteps = yMax - yMin;
+
+        // Schrittgrößen berechnen
+        tileSizeX = plotWidth / xSteps;
+        tileSizeY = plotHeight / ySteps;
+    }
 
     /*
         Initialisiert das Eingabefeld und den Button für die Funktionseingabe,
         um eine mathematische Funktion zu definieren und anzuzeigen.
      */
-    private void setupFunctionInput() {
-        TextInput functionInput1 = new TextInput(Clerk.view(), "f(x) = ","blue" ,"f(x)");
-        functionInput1.attachTo(delegate -> {
-            DoubleUnaryOperator newFunction = parseFunction(delegate);
-            function1 = new Function(newFunction, Color.BLUE);
-        });
-        TextInput functionInput2 = new TextInput(Clerk.view(), "g(x) = ", "red", "g(x)");
-        functionInput2.attachTo(delegate -> {
-            DoubleUnaryOperator newFunction = parseFunction(delegate);
-            function2 = new Function(newFunction, Color.RED);
-        });
-        TextInput functionInput3 = new TextInput(Clerk.view(), "h(x) = ", "green", "h(x)");
-        functionInput3.attachTo(delegate -> {
-           DoubleUnaryOperator newFunction = parseFunction(delegate);
-           function3 = new Function(newFunction, Color.GREEN);
-        });
+    private void setupFunctions() {
+
+        createFunctionInput("f(x) = ", Color.BLUE, delegate -> function1 = parseAndCreateFunction(delegate, Color.BLUE));
+        createFunctionInput("g(x) = ", Color.RED, delegate -> function2 = parseAndCreateFunction(delegate, Color.RED));
+        createFunctionInput("h(x) = ", Color.GREEN, delegate -> function3 = parseAndCreateFunction(delegate, Color.GREEN));
+
         Button functionButton = new Button(Clerk.view(), "Generate");
         functionButton.attachTo(() -> {
-            // Überprüfen, ob jede Funktion gesetzt wurde, bevor sie gezeichnet wird
-            if (function1 != null && function1.getFunction() != null) {
-                drawFunction(function1);
-            }
-            if (function2 != null && function2.getFunction() != null) {
-                drawFunction(function2);
-            }
-            if (function3 != null && function3.getFunction() != null) {
-                drawFunction(function3);
-            }
-            t.reset();
+            drawIfNotNull(function1);
+            drawIfNotNull(function2);
+            drawIfNotNull(function3);
+            t1.reset();
+            setupParameterInput();
             drawPlotter();
         });
     }
+
+    void createFunctionInput(String label, Color color, Consumer<String> t) {
+        TextInput functionInput = new TextInput(Clerk.view(), label, color.toString().toLowerCase(), label.replace(" = ", "") );
+        functionInput.attachTo(delegate -> {
+            if(delegate.isEmpty()) {
+                t.accept(null);
+            }
+            t.accept(delegate);
+        });
+
+    }
+    Function parseAndCreateFunction(String input, Color color) {
+        if(input == null)return null;
+        DoubleUnaryOperator newFunction = mathbib.parseFunction(input);
+        return new Function(newFunction, color);
+    }
+    private void drawIfNotNull(Function function) {
+        if (function != null && function.getFunction() != null) {
+            drawFunction(function);
+        }
+    }
+
 
     /*
         Initialisiert die Eingabe- und Steuerungselemente,
@@ -244,18 +311,22 @@ public class View {
     private void setupBoundsInput() {
         Clerk.write(Clerk.view(), "Grenzen setzen");
 
-        createIntegerInput("xMin", getBounds().get(0), value -> xMin = Integer.parseInt(value));
-        createIntegerInput("xMax", getBounds().get(2), value -> xMax = Integer.parseInt(value));
-        createIntegerInput("yMin", getBounds().get(1), value -> yMin = Integer.parseInt(value));
-        createIntegerInput("yMax", getBounds().get(3), value -> yMax = Integer.parseInt(value));
+        createBoundsInput("xMin", getBounds().get(0), value -> xMin = Integer.parseInt(value));
+        createBoundsInput("xMax", getBounds().get(2), value -> xMax = Integer.parseInt(value));
+        createBoundsInput("yMin", getBounds().get(1), value -> yMin = Integer.parseInt(value));
+        createBoundsInput("yMax", getBounds().get(3), value -> yMax = Integer.parseInt(value));
 
         Button setBoundsButton = new Button(Clerk.view(), "Set bounds");
         setBoundsButton.attachTo(() -> {
             setBounds(xMin, yMin, xMax, yMax);
             ogCoordinates = getBounds();
-            t.reset();
+            t1.reset();
             drawPlotter();
         });
+    }
+    private void createBoundsInput(String label, int defaultValue, Consumer<String> onChange) {
+        IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
+        input.attachTo(onChange);
     }
 
     /*
@@ -264,12 +335,30 @@ public class View {
  */
     private void setupParameterInput() {
         Checkbox parameterCheckbox = new Checkbox(Clerk.view(), "Solve function as f(x;a) with");
-        IntegerInput parameterFrom = new IntegerInput(Clerk.view(), "from", "from",1);
-        IntegerInput parameterTo = new IntegerInput(Clerk.view(), "to", "to",5);
-        parameterCheckbox.attachTo(value -> {
-            value = useParameter;
-            useParameter = !value;
+        createParameterInput("from", 1, value -> from = Integer.parseInt(value));
+        createParameterInput("to", 5, value -> to = Integer.parseInt(value));
+        Button parameterButton = new Button(Clerk.view(), "Set parameters");
+
+        parameterButton.attachTo(() -> {
+            if( from < to) {
+                updateParameterInput();
+            }
+            System.out.println(parameters);
         });
+        parameterCheckbox.attachTo(value -> {
+            useParameter = !useParameter;
+        });
+    }
+
+    void createParameterInput(String label, int defaultValue, Consumer<String> onChange) {
+        IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
+        input.attachTo(onChange);
+    }
+    void updateParameterInput() {
+        parameters.clear();
+        for (int i = from; i <= to; i++) {
+            parameters.add(i);
+        }
     }
 
     /*
@@ -277,9 +366,64 @@ public class View {
     */
     private void setupZoomSlider() {
         SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
-
-        zoom(zoomSlider);
+        new Thread(() -> {
+            zoom(zoomSlider);
+        }).start();
     }
+
+    //-----------------------------------------Funktionen---------------------------------------------//
+
+    /*
+        Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
+     */
+    void zoom(SliderStufen s) {
+        s.attachTo(response -> {
+            // temp gibt an, ob der Zoomwert steigt oder sinkt, also rein oder rauszoomen
+            int temp = (Integer.parseInt(response) - zoomValue);
+            zoomValue = Integer.parseInt(response);
+            if(temp > 0) {
+                zoomOut(temp);
+            } else if (temp < 0) {
+                zoomIn(temp);
+            }
+            setBounds(xMin, yMin, xMax, yMax);
+
+            new Thread(() -> {
+                t1.reset();
+                drawPlotter();
+            }).start();
+        });
+    }
+
+    // Wenn der Slider-Wert steigt (Rauszoomen),
+    // "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
+    void zoomOut(int temp) {
+        List<Runnable> updates = List.of(
+                () -> { if (ogCoordinates.getFirst() <= -1) xMin += 1; },
+                () -> { if (ogCoordinates.get(1) <= -1) yMin += 1; },
+                () -> { if (ogCoordinates.get(2) >= 1) xMax -= 1; },
+                () -> { if (ogCoordinates.get(3) >= 1) yMax -= 1; }
+        );
+        updates.forEach(Runnable::run);
+    }
+    // Wenn der Slider-Wert sinkt (Reinzoomen),
+    // verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
+    void zoomIn(int temp) {
+        xMin = (xMin <= -1) ? xMin - 1 : xMin;
+        yMin = (yMin <= -1) ? yMin - 1 : yMin;
+        xMax = (xMax >= 1) ? xMax + 1 : xMax;
+        yMax = (yMax >= 1) ? yMax + 1 : yMax;
+    }
+
+
+
+
+
+    void useParameter(boolean value) {
+
+    }
+
+    //-----------------------------------Getter-und-Setter-------------------------//
 
     public void setBounds(int xMin, int yMin, int xMax, int yMax) {
         if(xMin >= xMax) {
@@ -301,181 +445,214 @@ public class View {
         return bounds;
     }
 
+
+    /*
+        Die Enum Color definiert vordefinierte Farben (BLUE, RED, GREEN) mit ihren RGB-Werten.
+     */
+    enum Color {
+        BLUE(0,0,255),
+        RED(255,0,0),
+        GREEN(0,255,0);
+
+        private final int red;
+        private final int green;
+        private final int blue;
+
+        Color(int red, int green, int blue) {
+            this.red = red;
+            this.blue = blue;
+            this.green = green;
+        }
+
+        public int getRed() {
+            return red;
+        }
+
+        public int getGreen() {
+            return green;
+        }
+
+        public int getBlue() {
+            return blue;
+        }
+    }
+
+    /*
+        Die Klasse Function speichert eine mathematische Funktion und eine Farbe.
+     */
+    class Function {
+        public DoubleUnaryOperator function;
+        public Color color;
+
+        public Function(DoubleUnaryOperator function, Color color) {
+            this.function = function;
+            this.color = color;
+        }
+
+        public void setFunction(DoubleUnaryOperator function) {
+            this.function = function;
+        }
+        public DoubleUnaryOperator getFunction() {
+            return function;
+        }
+        public Color getColor() {
+            return color;
+        }
+
+    }
+}
+
+
+//-------------------------------------Klassen---------------------------------------//
+
+class MathBib {
+
     public DoubleUnaryOperator parseFunction(String functionInput) {
         functionInput = functionInput.replaceAll("\\s+", ""); // Entfernt alle Leerzeichen
 
-        // Beispiel für das Erkennen von x^n (Potenzfunktionen)
-        if (functionInput.matches("^[xX]\\^\\d+$")) {
-            int power = Integer.parseInt(functionInput.substring(2));
-            return (x) -> Math.pow(x, power);
+        //Potenzfunktionen 2x^2
+        if (functionInput.matches("^[+-]?(\\d+)?[xX]\\^[-+]?\\d+$")) {
+            String[] parts = functionInput.split("[xX]\\^");
+            String coefficientPart = parts[0];
+            String exponentPart = parts[1];
+
+            int coefficient = coefficientPart.isEmpty() || coefficientPart.equals("+") ? 1 :
+                    coefficientPart.equals("-") ? -1 : Integer.parseInt(coefficientPart);
+            int power = Integer.parseInt(exponentPart);
+
+            return (x) -> {
+                double result = 1.0;
+
+                if (power >= 0) {
+                    for (int i = 0; i < power; i++) {
+                        result *= x;
+                    }
+                } else {
+                    for (int i = 0; i < -power; i++) {
+                        result *= x;
+                    }
+                    result = 1.0 / result;
+                }
+
+                return coefficient * result;
+            };
         }
 
-        // Beispiel für lineare Funktionen der Form 2x + 3
-        if (functionInput.matches("^[+-]?\\d*x([+-]?\\d+)?$")) {
-            Pattern pattern = Pattern.compile("([+-]?\\d*)x([+-]?\\d*)");
+        // Lineare Funktionen 2x + 3
+        if (functionInput.matches("^[+-]?(\\d+)?x([+-]?\\d+)?$")) {
+            Pattern pattern = Pattern.compile("([+-]?(\\d+)?x)([+-]?\\d+)?");
             Matcher matcher = pattern.matcher(functionInput);
             if (matcher.matches()) {
-                int coefficient = matcher.group(1).isEmpty() ? 1 : Integer.parseInt(matcher.group(1));
-                int constant = matcher.group(2).isEmpty() ? 0 : Integer.parseInt(matcher.group(2));
-                return (x) -> coefficient * x + constant;
+                final int coefficient = matcher.group(2) == null || matcher.group(2).isEmpty() ? 1 : Integer.parseInt(matcher.group(2));
+                final int adjustedCoefficient = matcher.group(1).startsWith("-") ? -coefficient : coefficient;
+                final int constant = matcher.group(3) == null || matcher.group(3).isEmpty() ? 0 : Integer.parseInt(matcher.group(3));
+                return (x) -> adjustedCoefficient * x + constant;
             }
         }
 
-        // Beispiel für trigonometrische Funktionen wie sin(x), cos(x), tan(x)
-        if (functionInput.matches("^(sin|cos|tan)\\(x\\)$")) {
-            if (functionInput.startsWith("sin")) {
-                return (x) -> Math.sin(x);
-            } else if (functionInput.startsWith("cos")) {
-                return (x) -> Math.cos(x);
-            } else if (functionInput.startsWith("tan")) {
-                return (x) -> Math.tan(x);
+        if (functionInput.matches("^[+-]?[xX][+-]\\s?[aA]$")) { {
+            return parseParameter(functionInput);
+        }
+        }
+
+
+        // sin(), cos(), tan() und sqrt()
+        if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)$")) {
+            boolean isNegative = functionInput.startsWith("-");
+
+            if (functionInput.contains("sin")) {
+                return isNegative ? (x) -> -sin(x) : (x) -> sin(x);
+            } else if (functionInput.contains("cos")) {
+                return isNegative ? (x) -> -cos(x) : (x) -> cos(x);
+            } else if (functionInput.contains("tan")) {
+                return isNegative ? (x) -> -tan(x) : (x) -> tan(x);
+            } else if (functionInput.contains("sqrt")) {
+                return (x) -> sqrt(x);
             }
+        }
+
+        throw new IllegalArgumentException("Unbekanntes Format: " + functionInput);
+    }
+
+    double sin(double x) {
+        double result = 0;
+        double term = x;
+        int sign = 1;
+
+        for (int i = 1; i <= 30; i++) {
+            result += sign * term;
+            sign = -sign;
+            term *= x * x / (2 * i * (2 * i + 1));
+        }
+
+        return result;
+    }
+
+
+    double cos(double x) {
+        double result = 1;
+        double term = 1;
+        int sign = -1;
+
+        for (int i = 0; i < 30; i+=2) { // i < 30 WARUM?
+            term *= x * x/((i+1)*(i+2));
+            result += sign * term;
+            sign = -sign;
+        }
+        return result;
+    }
+
+    double tan(double x) {
+        double sinValue = sin(x);
+        double cosValue = cos(x);
+
+        return sinValue / cosValue;
+    }
+
+    //TODO -sqrt(x)
+    double sqrt(double x) {
+        if (x <= 0) {
+            return 0;
+        }
+        double guess = x / 2;
+        double epsilon = 1e-6;
+
+        while (true) {
+            double guessSquared = guess * guess;
+            double difference = guessSquared - x;
+
+            if (difference < epsilon && difference > -epsilon) {
+                break;
+            }
+
+            guess = (guess + x / guess) / 2;
+        }
+        return guess;
+    }
+
+    // Funktionen mit Parameter, z.B. x + a oder x - a
+    DoubleUnaryOperator parseParameter(String functionInput) {
+        String cleanedInput = functionInput.replaceAll("\\s", "").toLowerCase();
+
+        // Überprüfen, ob die Eingabe dem Muster "x + a" oder "x - a" entspricht
+        if (cleanedInput.matches("x[+-]a")) {
+            // Bestimme das Vorzeichen der Zahl
+            char operator = cleanedInput.charAt(1);  // '+' oder '-'
+
+            return (x) -> {
+                double a = 1;  // Wir gehen davon aus, dass "a" hier den Wert 1 hat
+                if (operator == '+') {
+                    return x + a;
+                } else {
+                    return x - a;
+                }
+            };
         }
         return null;
     }
 
-
-    /*
-        Erstellt ein IntegerInput
-     */
-    private void createIntegerInput(String label, int defaultValue, Consumer<String> onChange) {
-        IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
-        input.attachTo(onChange);
-    }
-
-
-
-
-
-    /*
-        Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
-     */
-    void zoom(SliderStufen s) {
-        s.attachTo(response -> {
-            // delta gibt an, ob der Zoomwert steigt oder sinkt, also rein oder rauszoomen
-            int delta = (Integer.parseInt(response) - zoomValue);
-            zoomValue = Integer.parseInt(response);
-            if (delta > 0) {
-                // Wenn der Slider-Wert steigt (Rauszoomen),
-                // "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
-                if(ogCoordinates.get(0) <= -1) {
-                    xMin += (xMin == 0 ? 0 : 1);
-                }
-                if(ogCoordinates.get(1) <= -1) {
-                    yMin += (yMin == 1 ? 0 : 1);
-                }
-                if(ogCoordinates.get(2) >= 1) {
-                    xMax -= (xMax == 0 ? 0 : 1);
-                }
-                if(ogCoordinates.get(3) >= 1) {
-                    yMax -= (yMax == 1 ? 0 : 1);
-                }
-            } else if (delta < 0) {
-                // Wenn der Slider-Wert sinkt (Reinzoomen),
-                // verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
-                if(xMin <= -1) {
-                    xMin -= (xMin == 0 ? 0 : 1);
-                }
-                if(yMin <= -1) {
-                    yMin -= (yMin == 1 ? 0 : 1);
-                }
-                if(xMax >= 1) {
-                    xMax += (xMax == 0 ? 0 : 1);
-                }
-                if(yMax >= 1) {
-                    yMax += (yMax == 1 ? 0 : 1);
-                }
-            }
-            setBounds(xMin, yMin, xMax, yMax);
-
-            new Thread(() -> {
-                t.reset();
-                drawPlotter();
-            }).start();
-        });
-    }
-
-
-
-    /*
-        Methode zum berechnen der Kästchengröße
-     */
-    void generateTileSizes() {
-        List<Integer> coordinates = getBounds();
-        xMin = coordinates.get(0);
-        xMax = coordinates.get(2);
-        yMin = coordinates.get(1);
-        yMax = coordinates.get(3);
-
-        // Anzahl der Schritte berechnen
-        int xSteps = xMax - xMin;
-        int ySteps = yMax - yMin;
-
-        // Schrittgrößen berechnen
-        tileSizeX = plotWidth / xSteps;
-        tileSizeY = plotHeight / ySteps;
-    }
-
-
-
-
-
-
-
-
-    /*
-        Beschriftet die Achsen
-    */
-    void labelAxis() {
-        t.color(0); // Textfarbe Schwarz
-        t.left(90); // Textausrichtung nach links rotieren
-
-        // X-Achse
-        int xMin = getBounds().get(0);
-        int xMax = getBounds().get(2);
-
-        // Positive X-Beschriftung (rechts vom Ursprung)
-        for (int i = 1; i <= xMax; i++) {
-            int xPos = halfWidth + i * tileSizeX; // Position der Beschriftung
-            t.moveTo(xPos, margin + plotHeight + 15); // Verschieben unterhalb der X-Achse
-            t.text(String.valueOf(i)); // Beschriftung zeichnen
-        }
-
-        // Negative X-Beschriftung (links vom Ursprung)
-        for (int i = 1; i <= Math.abs(xMin); i++) {
-            int xPos = halfWidth - i * tileSizeX; // Position der Beschriftung
-            t.moveTo(xPos, margin + plotHeight + 15); // Verschieben unterhalb der X-Achse
-            t.text(String.valueOf(-i)); // Beschriftung zeichnen
-        }
-
-        // Y-Achse
-        int yMin = getBounds().get(1);
-        int yMax = getBounds().get(3);
-
-        // Positive Y-Beschriftung (oberhalb des Ursprungs)
-        for (int i = 1; i <= yMax; i++) {
-            int yPos = halfHeight - i * tileSizeY; // Position der Beschriftung
-            t.moveTo(margin - 10, yPos + 3); // Verschieben links von der Y-Achse
-            t.text(String.valueOf(i)); // Beschriftung zeichnen
-        }
-
-        // Negative Y-Beschriftung (unterhalb des Ursprungs)
-        for (int i = 1; i <= Math.abs(yMin); i++) {
-            int yPos = halfHeight + i * tileSizeY; // Position der Beschriftung
-            t.moveTo(margin - 10, yPos + 3); // Verschieben links von der Y-Achse
-            t.text(String.valueOf(-i)); // Beschriftung zeichnen
-        }
-
-        // Ursprung (0,0)
-        t.moveTo(margin - 10, halfHeight); // Beschriftung links neben der Y-Achse
-        t.text("0");
-        t.moveTo(halfWidth, margin + plotHeight + 15); // Beschriftung unterhalb der X-Achse
-        t.text("0");
-    }
-
 }
 
-//-------------------------------------Klassen---------------------------------------//
 
 /*
     Erstellt ein Texteingabefeld
@@ -676,72 +853,17 @@ class SliderStufen implements Clerk {
         // JavaScript: Event-Listener für den Slider
         Clerk.script(view, Text.fillOut(
                 """
-                slider${0}.addEventListener('input', (event) => {
-                    const value = event.target.value;
-                    console.log("slider${0}: value = " + value);
-                    valueDisplay${0}.textContent = value; // Aktualisiere Wertanzeige
-                    fetch('slider${0}', {
-                        method: 'post',
-                        body: value.toString()
-                    }).catch(console.error);
-                });
-                """, Map.of("0", ID)));
+                        slider${0}.addEventListener('input', (event) => {
+                            const value = event.target.value;
+                            console.log("slider${0}: value = " + value);
+                            valueDisplay${0}.textContent = value; // Aktualisiere Wertanzeige
+                            fetch('slider${0}', {
+                                method: 'post',
+                                body: value.toString()
+                            }).catch(console.error);
+                        });
+                        """, Map.of("0", ID)));
         return this;
     }
-}
-
-/*
-    Die Enum Color definiert vordefinierte Farben (BLUE, RED, GREEN) mit ihren RGB-Werten.
- */
-enum Color {
-    BLUE(0,0,255),
-    RED(255,0,0),
-    GREEN(0,255,0);
-
-    private final int red;
-    private final int green;
-    private final int blue;
-
-    Color(int red, int green, int blue) {
-        this.red = red;
-        this.blue = blue;
-        this.green = green;
-    }
-
-    public int getRed() {
-        return red;
-    }
-
-    public int getGreen() {
-        return green;
-    }
-
-    public int getBlue() {
-        return blue;
-    }
-}
-
-/*
-    Die Klasse Function speichert eine mathematische Funktion und eine Farbe.
- */
-class Function {
-    public DoubleUnaryOperator function;
-    public Color color;
-
-    public Function(DoubleUnaryOperator function, Color color) {
-        this.function = function;
-        this.color = color;
-    }
-
-    public void setFunction(DoubleUnaryOperator function) {
-        this.function = function;
-    }
-    public DoubleUnaryOperator getFunction() {
-        return function;
-    }
-    public Color getColor() {
-        return color;
-    }
-
 }
 

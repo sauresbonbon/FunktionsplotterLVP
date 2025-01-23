@@ -42,6 +42,9 @@ public class View {
 
     //-------------------------------Initialize--------------------------//
 
+    /*
+        Initialisiert die Grenzen
+     */
     void initializeBounds() {
         //xMin
         bounds.add(-10);
@@ -53,6 +56,10 @@ public class View {
         //yMax
         bounds.add(10);
     }
+
+    /*
+        Initialisiert die Parameter
+     */
     void initializeParameters() {
         for (int i = 1; i <= 5; i++) {
             parameters.add(i);
@@ -60,6 +67,9 @@ public class View {
     }
     //----------------------------draw-methods--------------------------//
 
+    /*
+        Initialisiert die LiveView, setzt die Grenzen und Parameter und zeichnet dann den Plotter und Benutzeroberfläche.
+     */
     public void draw() {
         Clerk.view();
         try {
@@ -69,12 +79,12 @@ public class View {
         }
         initializeBounds();
         initializeParameters();
-        ogCoordinates = getBounds();
+        ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
         t1 = new Turtle(width, height);
-//        t2 = new Turtle(width, height);
 
         drawPlotter();
         drawUI();
+        t2 = new Turtle(width, height);
     }
 
     /*
@@ -109,29 +119,16 @@ public class View {
         setupSaveAndLoadButton();
     }
 
-    void drawParameterFunctions() {
-        for (Function function : parameterFunctions1) {
-            try {
-                drawFunction(function);
-            } catch (Exception e) {
-                System.err.println("An error occurred in drawFunction: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-    }
-
-
-
     /*
         Zeichnet den Rahmen und die Achsen
      */
     public void drawPlotterArea() {
         t1.color(0);
         // Grenzen abrufen
-        xMin = getBounds().get(0);
-        xMax = getBounds().get(2);
-        yMin = getBounds().get(1);
-        yMax = getBounds().get(3);
+        xMin = bounds.get(0);
+        xMax = bounds.get(2);
+        yMin = bounds.get(1);
+        yMax = bounds.get(3);
 
         // Dynamisch den Ursprung berechnen
         double xRange = xMax - xMin;
@@ -156,7 +153,6 @@ public class View {
         t1.lineTo(margin, margin + plotHeight); // links
         t1.lineTo(margin, margin); // zurück zum Startpunkt
     }
-
 
     /*
         Zeichnet die Kästchen des Koordinatensystems
@@ -188,7 +184,6 @@ public class View {
         }
     }
 
-
     /*
         Zeichnet die Funktion in das Koordinatensystem
      */
@@ -201,8 +196,8 @@ public class View {
 
             t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
             double step = 0.01;
-            double scaleX = (double) plotWidth / (getBounds().get(2) - getBounds().get(0));
-            double scaleY = (double) plotHeight / (getBounds().get(3) - getBounds().get(1));
+            double scaleX = (double) plotWidth / (bounds.get(2) - bounds.get(0));
+            double scaleY = (double) plotHeight / (bounds.get(3) - bounds.get(1));
 
             for (double x = xMin; x <= xMax; x += step) {
                 if(x > xMax) break;
@@ -227,6 +222,19 @@ public class View {
         }
     }
 
+    /*
+    Zeichnet alle Parameterfunktionen.
+ */
+    void drawParameterFunctions() {
+        for (Function function : parameterFunctions1) {
+            try {
+                drawFunction(function);
+            } catch (Exception e) {
+                System.err.println("An error occurred in drawFunction: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
 
     /*
         Beschriftet die Achsen
@@ -236,8 +244,8 @@ public class View {
         t1.left(90);
 
         // X-Achse
-        int xMin = getBounds().get(0);
-        int xMax = getBounds().get(2);
+        int xMin = bounds.get(0);
+        int xMax = bounds.get(2);
 
         // X-Beschriftung
         for (int i = xMin; i <= xMax; i++) {
@@ -247,8 +255,8 @@ public class View {
         }
 
         // Y-Achse
-        int yMin = getBounds().get(1);
-        int yMax = getBounds().get(3);
+        int yMin = bounds.get(1);
+        int yMax = bounds.get(3);
 
         // Y-Beschriftung
         for (int i = yMin; i <= yMax; i++) {
@@ -271,7 +279,7 @@ public class View {
       Methode zum berechnen der Kästchengröße
    */
     void generateTileSizes() {
-        List<Integer> coordinates = getBounds();
+        List<Integer> coordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
         xMin = coordinates.get(0);
         xMax = coordinates.get(2);
         yMin = coordinates.get(1);
@@ -317,11 +325,11 @@ public class View {
             }
             t.accept(delegate);
         });
-
     }
 
     /*
-
+        Parst die Eingabe, um eine Funktion zu erstellen, und gibt sie zusammen mit der Farbe zurück.
+        Unterstützt sowohl Funktionen mit Parametern als auch einfache Funktionen ohne Parameter.
      */
     Function parseAndCreateFunction(String input, Color color) {
         if(input == null)return null;
@@ -333,9 +341,6 @@ public class View {
                 newFunction = mathbib.parseParameter(input, parameter);
                 if (newFunction != null) {
                     parameterFunctions1.add(new Function(newFunction, color));
-                    System.out.println("Parsed parameter function: " + newFunction);
-                } else {
-                    System.err.println("Failed to parse parameter function for input: " + input + " with parameter: " + parameter);
                 }
             }
 
@@ -363,15 +368,15 @@ public class View {
     private void setupBoundsInput() {
         Clerk.write(Clerk.view(), "Grenzen setzen");
 
-        createBoundsInput("xMin", getBounds().get(0), value -> xMin = Integer.parseInt(value));
-        createBoundsInput("xMax", getBounds().get(2), value -> xMax = Integer.parseInt(value));
-        createBoundsInput("yMin", getBounds().get(1), value -> yMin = Integer.parseInt(value));
-        createBoundsInput("yMax", getBounds().get(3), value -> yMax = Integer.parseInt(value));
+        createBoundsInput("xMin", bounds.get(0), value -> xMin = Integer.parseInt(value));
+        createBoundsInput("xMax", bounds.get(2), value -> xMax = Integer.parseInt(value));
+        createBoundsInput("yMin", bounds.get(1), value -> yMin = Integer.parseInt(value));
+        createBoundsInput("yMax", bounds.get(3), value -> yMax = Integer.parseInt(value));
 
         Button setBoundsButton = new Button(Clerk.view(), "Set bounds");
         setBoundsButton.attachTo(() -> {
             setBounds(xMin, yMin, xMax, yMax);
-            ogCoordinates = getBounds();
+            ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
             t1.reset();
             drawPlotter();
         });
@@ -379,6 +384,24 @@ public class View {
     private void createBoundsInput(String label, int defaultValue, Consumer<String> onChange) {
         IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
         input.attachTo(onChange);
+    }
+
+    /*
+    Setzt die Grenzen (Bounds) mit den gegebenen Werten
+ */
+    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
+        if(xMin >= xMax) {
+            System.out.println("xMin muss kleiner als xMax sein. (xMin = " + xMin + ", xMax = " + xMax + ")");
+        }
+        if(yMin >= yMax) {
+            System.out.println("yMin muss kleiner als yMax sein. (yMin = " + yMin + ", yMax = " + yMax + ")");
+        }
+        else {
+            bounds.set(0, xMin);
+            bounds.set(1, yMin);
+            bounds.set(2, xMax);
+            bounds.set(3, yMax);
+        }
     }
 
     /*
@@ -403,10 +426,17 @@ public class View {
         });
     }
 
+    /*
+        Erzeugt ein Eingabefeld für eine Funktion mit Parameter
+     */
     void createParameterInput(String label, int defaultValue, Consumer<String> onChange) {
         IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
         input.attachTo(onChange);
     }
+
+    /*
+        Aktualisiert die Liste der Parameter basierend auf den Grenzen 'from' und 'to'.
+     */
     void updateParameterInput() {
         parameters.clear();
         for (int i = from; i <= to; i++) {
@@ -425,6 +455,10 @@ public class View {
         }).start();
     }
 
+    /*
+        Initialisiert die Buttons "Save" und "Load" mit ihren jeweiligen Funktionen.
+        Der "Save"-Button speichert die Daten, während der "Load"-Button die Daten lädt und die Darstellung aktualisiert.
+     */
     private void setupSaveAndLoadButton(){
         Button saveButton = new Button(Clerk.view(),"Save");
         saveButton.attachTo(() -> {
@@ -442,6 +476,9 @@ public class View {
         });
     }
 
+    /*
+        Speichert die Funktion und die Grenzen in die Datei "savedPlot.csv"
+     */
     void save() {
         try (FileOutputStream fos = new FileOutputStream("savedPlot.csv");
              OutputStreamWriter osw = new OutputStreamWriter(fos);
@@ -472,6 +509,9 @@ public class View {
         }
     }
 
+    /*
+        Lädt die Funktion und Grenzen aus der Datei "savedPlot.csv"
+     */
     void load() {
         try (FileInputStream fis = new FileInputStream("savedPlot.csv");
              InputStreamReader isr = new InputStreamReader(fis);
@@ -537,8 +577,10 @@ public class View {
         });
     }
 
-    // Wenn der Slider-Wert steigt (Rauszoomen),
-    // "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
+    /*
+         Wenn der Slider-Wert steigt (Rauszoomen),
+        "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
+     */
     void zoomOut(int temp) {
         List<Runnable> updates = List.of(
                 () -> { if (ogCoordinates.getFirst() <= -1) xMin += 1; },
@@ -548,97 +590,77 @@ public class View {
         );
         updates.forEach(Runnable::run);
     }
-    // Wenn der Slider-Wert sinkt (Reinzoomen),
-    // verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
+
+    /*
+         Wenn der Slider-Wert sinkt (Reinzoomen),
+        verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
+     */
     void zoomIn(int temp) {
         xMin = (xMin <= -1) ? xMin - 1 : xMin;
         yMin = (yMin <= -1) ? yMin - 1 : yMin;
         xMax = (xMax >= 1) ? xMax + 1 : xMax;
         yMax = (yMax >= 1) ? yMax + 1 : yMax;
     }
-
-
-    //-----------------------------------Getter-und-Setter-------------------------//
-
-    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
-        if(xMin >= xMax) {
-            throw new IllegalArgumentException("xMin muss kleiner als xMax sein. (xMin = " + xMin + ", xMax = " + xMax + ")");
-        }
-        if(yMin >= yMax) {
-            throw new IllegalArgumentException("yMin muss kleiner als yMax sein. (yMin = " + yMin + ", yMax = " + yMax + ")");
-        }
-        else {
-            bounds.set(0, xMin);
-            bounds.set(1, yMin);
-            bounds.set(2, xMax);
-            bounds.set(3, yMax);
-        }
-    }
-
-
-    public List<Integer> getBounds() {
-        return bounds;
-    }
-
-
-    /*
-        Die Enum Color definiert vordefinierte Farben (BLUE, RED, GREEN) mit ihren RGB-Werten.
-     */
-    enum Color {
-        BLUE(0,0,255),
-        RED(255,0,0),
-        GREEN(0,255,0);
-
-        private final int red;
-        private final int green;
-        private final int blue;
-
-        Color(int red, int green, int blue) {
-            this.red = red;
-            this.blue = blue;
-            this.green = green;
-        }
-
-        public int getRed() {
-            return red;
-        }
-
-        public int getGreen() {
-            return green;
-        }
-
-        public int getBlue() {
-            return blue;
-        }
-    }
-
-    /*
-        Die Klasse Function speichert eine mathematische Funktion und eine Farbe.
-     */
-    class Function {
-        public DoubleUnaryOperator function;
-        public Color color;
-
-        public Function(DoubleUnaryOperator function, Color color) {
-            this.function = function;
-            this.color = color;
-        }
-
-        public void setFunction(DoubleUnaryOperator function) {
-            this.function = function;
-        }
-        public DoubleUnaryOperator getFunction() {
-            return function;
-        }
-        public Color getColor() {
-            return color;
-        }
-
-    }
 }
 
 
 //-------------------------------------Klassen---------------------------------------//
+
+
+/*
+    Die Enum Color definiert vordefinierte Farben (BLUE, RED, GREEN) mit ihren RGB-Werten.
+ */
+enum Color {
+    BLUE(0,0,255),
+    RED(255,0,0),
+    GREEN(0,255,0);
+
+    private final int red;
+    private final int green;
+    private final int blue;
+
+    Color(int red, int green, int blue) {
+        this.red = red;
+        this.blue = blue;
+        this.green = green;
+    }
+
+    public int getRed() {
+        return red;
+    }
+
+    public int getGreen() {
+        return green;
+    }
+
+    public int getBlue() {
+        return blue;
+    }
+}
+
+/*
+    Die Klasse Function speichert eine mathematische Funktion und eine Farbe.
+ */
+class Function {
+    public DoubleUnaryOperator function;
+    public Color color;
+
+    public Function(DoubleUnaryOperator function, Color color) {
+        this.function = function;
+        this.color = color;
+    }
+
+    public void setFunction(DoubleUnaryOperator function) {
+        this.function = function;
+    }
+    public DoubleUnaryOperator getFunction() {
+        return function;
+    }
+    public Color getColor() {
+        return color;
+    }
+
+}
 
 class MathBib {
 
@@ -792,8 +814,6 @@ class MathBib {
         }
         return null;
     }
-
-
 }
 
 
@@ -1007,6 +1027,14 @@ class SliderStufen implements Clerk {
                         });
                         """, Map.of("0", ID)));
         return this;
+    }
+}
+
+//---------------------------------------Dokumentation-----------------------------------------//
+
+class Documentation {
+    Documentation() {
+
     }
 }
 

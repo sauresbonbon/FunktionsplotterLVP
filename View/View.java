@@ -5,6 +5,7 @@ import views.Turtle.*;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -17,7 +18,6 @@ public class View {
     private final int height = 600;
     private final int width = 600;
     int margin = 50;
-    private DoubleUnaryOperator f;
     Function function1, function2, function3;
     MathBib mathbib = new MathBib();
 
@@ -29,7 +29,6 @@ public class View {
     boolean useParameter = false;
     int zoomValue;
 
-    Map<String, String> functionMap = Map.of("f(x)", "", "g(x)", "", "h(x)", "");
     List<Integer> bounds = new ArrayList<>();
     List<Integer> ogCoordinates;
     List<Integer> parameters = new ArrayList<>();
@@ -37,6 +36,8 @@ public class View {
 
     int xMin, xMax, yMin, yMax;
     int from, to;
+
+    Map<String, String> functionMap = new HashMap<>();
 
     private Turtle t1,t2;
 
@@ -299,10 +300,9 @@ public class View {
         um eine mathematische Funktion zu definieren und anzuzeigen.
      */
     private void setupFunctions() {
-
-        createFunctionInput("f(x) = ", Color.BLUE, delegate -> function1 = parseAndCreateFunction(delegate, Color.BLUE));
-        createFunctionInput("g(x) = ", Color.RED, delegate -> function2 = parseAndCreateFunction(delegate, Color.RED));
-        createFunctionInput("h(x) = ", Color.GREEN, delegate -> function3 = parseAndCreateFunction(delegate, Color.GREEN));
+        createFunctionInput("f", Color.BLUE, delegate -> function1 = parseAndCreateFunction(delegate, Color.BLUE));
+        createFunctionInput("g", Color.RED, delegate -> function2 = parseAndCreateFunction(delegate, Color.RED));
+        createFunctionInput("h", Color.GREEN, delegate -> function3 = parseAndCreateFunction(delegate, Color.GREEN));
 
         Button functionButton = new Button(Clerk.view(), "Generate");
         functionButton.attachTo(() -> {
@@ -318,8 +318,9 @@ public class View {
         Erstellt die Funktions-Input-Felder
      */
     void createFunctionInput(String label, Color color, Consumer<String> t) {
-        TextInput functionInput = new TextInput(Clerk.view(), label, color.toString().toLowerCase(), label.replace(" = ", "") );
+        TextInput functionInput = new TextInput(Clerk.view(), label + "(x) = ", color.toString().toLowerCase(), label + "(x)" );
         functionInput.attachTo(delegate -> {
+            functionMap.put(label, delegate);
             if(delegate.isEmpty()) {
                 t.accept(null);
             }
@@ -471,8 +472,8 @@ public class View {
             load();
             Clerk.write(Clerk.view(), "Loaded plot from savedPlot.csv");
             t1.reset();
-            drawFunction(function1);
             drawPlotter();
+            drawFunction(function1);
         });
     }
 
@@ -487,7 +488,7 @@ public class View {
             if (function1 == null || function1.getFunction() == null) {
                 System.out.println("Function is null.");
             }
-            bw.write(function1.getFunction().toString());
+            bw.write(functionMap.get("f"));
             bw.newLine();
 
             if (bounds == null || bounds.isEmpty()) {
@@ -644,6 +645,7 @@ enum Color {
 class Function {
     public DoubleUnaryOperator function;
     public Color color;
+    public String functionInput;
 
     public Function(DoubleUnaryOperator function, Color color) {
         this.function = function;
@@ -662,69 +664,89 @@ class Function {
 
 }
 
+/*
+    Die Klasse MathBib enthält Methoden zum Parsen und Berechnen von mathematischen Funktionen.
+ */
 class MathBib {
 
+    /*
+        Parst eine mathematische Funktion aus einem String und gibt die entsprechende
+        DoubleUnaryOperator-Implementierung zurück.
+     */
     public DoubleUnaryOperator parseFunction(String functionInput) {
+        if (functionInput == null || functionInput.isBlank()) {
+            throw new IllegalArgumentException("Eingabe darf nicht leer sein");
+        }
+
         functionInput = functionInput.replaceAll("\\s+", ""); // Entfernt alle Leerzeichen
 
-        //Potenzfunktionen 2x^2
-        if (functionInput.matches("^[+-]?(\\d+)?[xX]\\^[-+]?\\d+$")) {
-            String[] parts = functionInput.split("[xX]\\^");
-            String coefficientPart = parts[0];
-            String exponentPart = parts[1];
-
-            int coefficient = coefficientPart.isEmpty() || coefficientPart.equals("+") ? 1 :
-                    coefficientPart.equals("-") ? -1 : Integer.parseInt(coefficientPart);
-            int power = Integer.parseInt(exponentPart);
-
-            return (x) -> {
-                double result = 1.0;
-
-                if (power >= 0) {
-                    for (int i = 0; i < power; i++) {
-                        result *= x;
-                    }
-                } else {
-                    for (int i = 0; i < -power; i++) {
-                        result *= x;
-                    }
-                    result = 1.0 / result;
-                }
-
-                return coefficient * result;
-            };
-        }
-
-        // Lineare Funktionen 2x + 3
         if (functionInput.matches("^[+-]?(\\d+)?x([+-]?\\d+)?$")) {
-            Pattern pattern = Pattern.compile("([+-]?(\\d+)?x)([+-]?\\d+)?");
-            Matcher matcher = pattern.matcher(functionInput);
-            if (matcher.matches()) {
-                final int coefficient = matcher.group(2) == null || matcher.group(2).isEmpty() ? 1 : Integer.parseInt(matcher.group(2));
-                final int adjustedCoefficient = matcher.group(1).startsWith("-") ? -coefficient : coefficient;
-                final int constant = matcher.group(3) == null || matcher.group(3).isEmpty() ? 0 : Integer.parseInt(matcher.group(3));
-                return (x) -> adjustedCoefficient * x + constant;
-            }
+            return parseLinear(functionInput);
         }
 
+        if (functionInput.matches("^[+-]?(\\d+)?[xX]\\^[-+]?\\d+$")) {
+            return parsePowerFunction(functionInput);
+        }
 
-        // sin(), cos(), tan() und sqrt()
         if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)$")) {
-            boolean isNegative = functionInput.startsWith("-");
-
-            if (functionInput.contains("sin")) {
-                return isNegative ? (x) -> -sin(x) : this::sin;
-            } else if (functionInput.contains("cos")) {
-                return isNegative ? (x) -> -cos(x) : this::cos;
-            } else if (functionInput.contains("tan")) {
-                return isNegative ? (x) -> -tan(x) : this::tan;
-            }
+            return parseTrigonometricFunction(functionInput);
         }
 
         throw new IllegalArgumentException("Unbekanntes Format: " + functionInput);
     }
+    /*
+        Parst eine Lineare Funktion (x+2) mit optionalem Vorzeichen (+ oder -).
+     */
+    private DoubleUnaryOperator parseLinear(String functionInput) {
+        Pattern pattern = Pattern.compile("([+-]?(\\d+)?)x([+-]?\\d+)?");
+        Matcher matcher = pattern.matcher(functionInput);
 
+        if (matcher.matches()) {
+            final int coefficient = matcher.group(2) == null ? 1 : Integer.parseInt(matcher.group(2));
+            final int adjustedCoefficient = matcher.group(1) != null && matcher.group(1).startsWith("-") ? -coefficient : coefficient;
+            final int constant = matcher.group(3) == null ? 0 : Integer.parseInt(matcher.group(3));
 
+            return (x) -> adjustedCoefficient * x + constant;
+        }
+
+        throw new IllegalArgumentException("Ungültiges lineares Format: " + functionInput);
+    }
+
+    /*
+        Parst eine Potenzfunktion (x^2) mit optionalem Vorzeichen (+ oder -).
+     */
+    DoubleUnaryOperator parsePowerFunction(String functionInput) {
+        String[] parts = functionInput.split("[xX]\\^");
+
+        final int coefficient = parts[0].isEmpty() || parts[0].equals("+") ? 1 :
+                parts[0].equals("-") ? -1 : Integer.parseInt(parts[0]);
+        final int power = Integer.parseInt(parts[1]);
+
+        return (x) -> coefficient * Math.pow(x, power);
+    }
+
+    /*
+        Parst eine trigonometrische Funktion (sin(x), cos(x), tan(x)) mit optionalem Vorzeichen (+ oder -).
+     */
+    DoubleUnaryOperator parseTrigonometricFunction(String functionInput) {
+        final boolean isNegative = functionInput.startsWith("-");
+        final String function = functionInput.replaceFirst("^[+-]", "");
+
+        switch (function) {
+            case "sin(x)":
+                return isNegative ? (x) -> -sin(x) : this::sin;
+            case "cos(x)":
+                return isNegative ? (x) -> -cos(x) : this::cos;
+            case "tan(x)":
+                return isNegative ? (x) -> -tan(x) : this::tan;
+            default:
+                throw new IllegalArgumentException("Unbekannte trigonometrische Funktion: " + functionInput);
+        }
+    }
+
+    /*
+        Berechnet sin(x)
+     */
     double sin(double x) {
         double result = 0;
         double term = x;
@@ -739,7 +761,9 @@ class MathBib {
         return result;
     }
 
-
+    /*
+        Berechnet cos(x)
+     */
     double cos(double x) {
         double result = 1;
         double term = 1;
@@ -753,6 +777,9 @@ class MathBib {
         return result;
     }
 
+    /*
+        Berechnet tan(x)
+     */
     double tan(double x) {
         double sinValue = sin(x);
         double cosValue = cos(x);
@@ -760,8 +787,9 @@ class MathBib {
         return sinValue / cosValue;
     }
 
-
-    // Funktionen mit Parameter, z.B. x + a, x - a, x^2 + a
+    /*
+        Funktionen mit Parameter, z.B. x + a, x - a, x^2 + a
+     */
     DoubleUnaryOperator parseParameter(String functionInput, int a) {
         functionInput = functionInput.replaceAll("\\s", "");
 
@@ -815,7 +843,6 @@ class MathBib {
         return null;
     }
 }
-
 
 /*
     Erstellt ein Texteingabefeld

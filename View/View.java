@@ -29,6 +29,7 @@ public class View {
     int zoomValue;
     List<Integer> ogCoordinates;
     List<Integer> parameters = new ArrayList<>();
+    List<Function> parameterFunctions1 = new ArrayList<>();
 
     int xMin, xMax, yMin, yMax;
     int from, to;
@@ -80,14 +81,13 @@ public class View {
         drawGrid(plotWidth, plotHeight);
         drawPlotterArea();
         labelAxis();
+
         if (function1 != null) {
             if(useParameter) {
-                for (int i = 0; i < to-from; i++) {
-                    final int parameterValue = parameters.get(i);
-                    function1.setFunction(function1.getFunction().andThen(x -> function1.function.applyAsDouble(x + parameterValue)));
-                }
+                drawParameterFunctions();
+            } else {
+                drawFunction(function1);
             }
-            drawFunction(function1);
         }
         if (function2 != null) drawFunction(function2);
         if (function3 != null) drawFunction(function3);
@@ -102,6 +102,18 @@ public class View {
         setupBoundsInput();
         setupParameterInput();
         setupZoomSlider();
+    }
+
+    void drawParameterFunctions() {
+        for (Function function : parameterFunctions1) {
+            try {
+                System.out.println(function);
+                drawFunction(function);
+            } catch (Exception e) {
+                System.err.println("An error occurred in drawFunction: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
 
@@ -177,30 +189,39 @@ public class View {
         Zeichnet die Funktion in das Koordinatensystem
      */
     void drawFunction(Function function) {
+        try {
+            if (function == null || function.function == null) {
+                System.err.println("Skipping drawing due to uninitialized function.");
+                return;
+            }
 
-        t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
-        double step = 0.1;
-        double scaleX = (double) plotWidth / (getBounds().get(2) - getBounds().get(0));
-        double scaleY = (double) plotHeight / (getBounds().get(3) - getBounds().get(1));
+            t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
+            double step = 0.1;
+            double scaleX = (double) plotWidth / (getBounds().get(2) - getBounds().get(0));
+            double scaleY = (double) plotHeight / (getBounds().get(3) - getBounds().get(1));
 
-        for (double x = xMin; x <= xMax; x += step) {
-            double y = function.function.applyAsDouble(x);
-            if (y < yMin || y > yMax) continue;
+            for (double x = xMin; x <= xMax; x += step) {
+                double y = function.function.applyAsDouble(x);
+                if (Double.isNaN(y) || Double.isInfinite(y) || y < yMin || y > yMax) continue;
 
-            double screenX = (halfWidth + x * scaleX);
-            double screenY = (halfHeight - y * scaleY);
+                double screenX = (halfWidth + x * scaleX);
+                double screenY = (halfHeight - y * scaleY);
 
-            double nextY = function.function.applyAsDouble(x + step);
-            if (nextY >= yMin && nextY <= yMax) {
+                double nextY = function.function.applyAsDouble(x + step);
+                if (Double.isNaN(nextY) || Double.isInfinite(nextY) || nextY < yMin || nextY > yMax) continue;
+
                 double nextScreenX = (halfWidth + (x + step) * scaleX);
                 double nextScreenY = (halfHeight - nextY * scaleY);
 
                 t1.moveTo(screenX, screenY);
                 t1.lineTo(nextScreenX, nextScreenY);
             }
+        } catch (Exception e) {
+            System.err.println("Error drawing function: " + e.getMessage());
+            e.printStackTrace();
         }
-
     }
+
 
     /*
         Beschriftet die Achsen
@@ -276,7 +297,6 @@ public class View {
             drawIfNotNull(function2);
             drawIfNotNull(function3);
             t1.reset();
-            setupParameterInput();
             drawPlotter();
         });
     }
@@ -293,8 +313,27 @@ public class View {
     }
     Function parseAndCreateFunction(String input, Color color) {
         if(input == null)return null;
-        DoubleUnaryOperator newFunction = mathbib.parseFunction(input);
-        return new Function(newFunction, color);
+        DoubleUnaryOperator newFunction = null;
+
+        if(useParameter) {
+            parameterFunctions1.clear();
+            for (int i = 0; i < parameters.size(); i++) {
+                newFunction = mathbib.parseParameter(input, parameters.get(i));
+                if(newFunction != null) {
+                    parameterFunctions1.add(new Function(newFunction, color));
+                    System.out.println("Parsed parameter function: " + newFunction);
+                } else {
+                    System.err.println("Failed to parse parameter function for input: " + input + " with parameter: " + parameters.get(i));
+                }
+            }
+
+        } else {
+            newFunction = mathbib.parseFunction(input);
+            if(newFunction != null) {
+                System.err.println("Failed to parse function for input: " + input);
+            }
+        }
+        return newFunction != null ? new Function(newFunction, color) : null;
     }
     private void drawIfNotNull(Function function) {
         if (function != null && function.getFunction() != null) {
@@ -342,8 +381,9 @@ public class View {
         parameterButton.attachTo(() -> {
             if( from < to) {
                 updateParameterInput();
+            } else {
+                System.err.println("Invalid parameter range: 'from' must be less than 'to'");
             }
-            System.out.println(parameters);
         });
         parameterCheckbox.attachTo(value -> {
             useParameter = !useParameter;
@@ -359,6 +399,7 @@ public class View {
         for (int i = from; i <= to; i++) {
             parameters.add(i);
         }
+        System.out.println("Updated parameters: " + parameters);
     }
 
     /*
@@ -550,11 +591,6 @@ class MathBib {
             }
         }
 
-        if (functionInput.matches("^[+-]?[xX][+-]\\s?[aA]$")) { {
-            return parseParameter(functionInput);
-        }
-        }
-
 
         // sin(), cos(), tan() und sqrt()
         if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)$")) {
@@ -566,13 +602,12 @@ class MathBib {
                 return isNegative ? (x) -> -cos(x) : (x) -> cos(x);
             } else if (functionInput.contains("tan")) {
                 return isNegative ? (x) -> -tan(x) : (x) -> tan(x);
-            } else if (functionInput.contains("sqrt")) {
-                return (x) -> sqrt(x);
             }
         }
 
         throw new IllegalArgumentException("Unbekanntes Format: " + functionInput);
     }
+
 
     double sin(double x) {
         double result = 0;
@@ -609,47 +644,57 @@ class MathBib {
         return sinValue / cosValue;
     }
 
-    //TODO -sqrt(x)
-    double sqrt(double x) {
-        if (x <= 0) {
-            return 0;
-        }
-        double guess = x / 2;
-        double epsilon = 1e-6;
 
-        while (true) {
-            double guessSquared = guess * guess;
-            double difference = guessSquared - x;
+    // Funktionen mit Parameter, z.B. x + a, x - a, x^2 + a
+    DoubleUnaryOperator parseParameter(String functionInput, int a) {
+        functionInput = functionInput.replaceAll("\\s", "");
 
-            if (difference < epsilon && difference > -epsilon) {
-                break;
+        // Erkenne den Fall x + a oder x - a
+        if (functionInput.matches("^[+-]?[xX][+-]?a$")) {
+            String cleanedInput = functionInput.toLowerCase();
+            if (cleanedInput.matches("x[+-]a")) {
+                char operator = cleanedInput.charAt(1);  // '+' oder '-'
+                return (x) -> operator == '+' ? x + a : x - a;
+            } else {
+                System.err.println("Invalid parameterized function format: " + functionInput);
             }
-
-            guess = (guess + x / guess) / 2;
         }
-        return guess;
-    }
-
-    // Funktionen mit Parameter, z.B. x + a oder x - a
-    DoubleUnaryOperator parseParameter(String functionInput) {
-        String cleanedInput = functionInput.replaceAll("\\s", "").toLowerCase();
-
-        // Überprüfen, ob die Eingabe dem Muster "x + a" oder "x - a" entspricht
-        if (cleanedInput.matches("x[+-]a")) {
-            // Bestimme das Vorzeichen der Zahl
-            char operator = cleanedInput.charAt(1);  // '+' oder '-'
+        // Erkenne den Fall x^2 + a oder x^2 - a
+        else if (functionInput.matches("^[+-]?[xX]\\^2[+-]?a$")) {
+            String cleanedInput = functionInput.toLowerCase();
+            char operator = cleanedInput.charAt(3);  // '+' oder '-'
 
             return (x) -> {
-                double a = 1;  // Wir gehen davon aus, dass "a" hier den Wert 1 hat
-                if (operator == '+') {
-                    return x + a;
-                } else {
-                    return x - a;
-                }
+                double result = Math.pow(x, 2);  // Berechne x^2
+                return operator == '+' ? result + a : result - a;
             };
+        }
+
+        else if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)[+-]a$")) {
+            String functionName = functionInput.replaceAll("\\(x\\)[+-]?a$", "");
+            boolean isNegative = functionInput.endsWith("-a");
+
+            // Rückgabe der jeweiligen Funktion mit der Konstante a
+            if (functionName.equals("sin")) {
+                return (x) -> {
+                    double result = sin(x); // Berechne sin(x)
+                    return isNegative ? result - a : result + a;
+                };
+            } else if (functionName.equals("cos")) {
+                return (x) -> {
+                    double result = cos(x); // Berechne cos(x)
+                    return isNegative ? result - a : result + a;
+                };
+            } else if (functionName.equals("tan")) {
+                return (x) -> {
+                    double result = tan(x); // Berechne tan(x)
+                    return isNegative ? result - a : result + a;
+                };
+            }
         }
         return null;
     }
+
 
 }
 

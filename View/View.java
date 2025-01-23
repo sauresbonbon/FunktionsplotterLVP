@@ -3,6 +3,7 @@ package View;
 import skills.Text.*;
 import views.Turtle.*;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,12 +11,12 @@ import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class View {
     private final int height = 600;
     private final int width = 600;
     int margin = 50;
-    List<Integer> bounds = new ArrayList<>();
     private DoubleUnaryOperator f;
     Function function1, function2, function3;
     MathBib mathbib = new MathBib();
@@ -27,6 +28,9 @@ public class View {
     int tileSizeX, tileSizeY;
     boolean useParameter = false;
     int zoomValue;
+
+    Map<String, String> functionMap = Map.of("f(x)", "", "g(x)", "", "h(x)", "");
+    List<Integer> bounds = new ArrayList<>();
     List<Integer> ogCoordinates;
     List<Integer> parameters = new ArrayList<>();
     List<Function> parameterFunctions1 = new ArrayList<>();
@@ -102,12 +106,12 @@ public class View {
         setupBoundsInput();
         setupParameterInput();
         setupZoomSlider();
+        setupSaveAndLoadButton();
     }
 
     void drawParameterFunctions() {
         for (Function function : parameterFunctions1) {
             try {
-                System.out.println(function);
                 drawFunction(function);
             } catch (Exception e) {
                 System.err.println("An error occurred in drawFunction: " + e.getMessage());
@@ -196,11 +200,12 @@ public class View {
             }
 
             t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
-            double step = 0.1;
+            double step = 0.01;
             double scaleX = (double) plotWidth / (getBounds().get(2) - getBounds().get(0));
             double scaleY = (double) plotHeight / (getBounds().get(3) - getBounds().get(1));
 
             for (double x = xMin; x <= xMax; x += step) {
+                if(x > xMax) break;
                 double y = function.function.applyAsDouble(x);
                 if (Double.isNaN(y) || Double.isInfinite(y) || y < yMin || y > yMax) continue;
 
@@ -248,12 +253,12 @@ public class View {
         // Y-Beschriftung
         for (int i = yMin; i <= yMax; i++) {
             int yPos = halfHeight - i * tileSizeY;
-            t1.moveTo(margin - 10, yPos + 3);
+            t1.moveTo(margin - 15, yPos);
             t1.text(String.valueOf(i));
         }
 
         // Ursprung (0,0)
-        t1.moveTo(margin - 10, halfHeight);
+        t1.moveTo(margin - 15, halfHeight);
         t1.text("0");
         t1.moveTo(halfWidth, margin + plotHeight + 15);
         t1.text("0");
@@ -301,6 +306,9 @@ public class View {
         });
     }
 
+    /*
+        Erstellt die Funktions-Input-Felder
+     */
     void createFunctionInput(String label, Color color, Consumer<String> t) {
         TextInput functionInput = new TextInput(Clerk.view(), label, color.toString().toLowerCase(), label.replace(" = ", "") );
         functionInput.attachTo(delegate -> {
@@ -311,19 +319,23 @@ public class View {
         });
 
     }
+
+    /*
+
+     */
     Function parseAndCreateFunction(String input, Color color) {
         if(input == null)return null;
         DoubleUnaryOperator newFunction = null;
 
         if(useParameter) {
             parameterFunctions1.clear();
-            for (int i = 0; i < parameters.size(); i++) {
-                newFunction = mathbib.parseParameter(input, parameters.get(i));
-                if(newFunction != null) {
+            for (Integer parameter : parameters) {
+                newFunction = mathbib.parseParameter(input, parameter);
+                if (newFunction != null) {
                     parameterFunctions1.add(new Function(newFunction, color));
                     System.out.println("Parsed parameter function: " + newFunction);
                 } else {
-                    System.err.println("Failed to parse parameter function for input: " + input + " with parameter: " + parameters.get(i));
+                    System.err.println("Failed to parse parameter function for input: " + input + " with parameter: " + parameter);
                 }
             }
 
@@ -335,6 +347,7 @@ public class View {
         }
         return newFunction != null ? new Function(newFunction, color) : null;
     }
+
     private void drawIfNotNull(Function function) {
         if (function != null && function.getFunction() != null) {
             drawFunction(function);
@@ -412,6 +425,94 @@ public class View {
         }).start();
     }
 
+    private void setupSaveAndLoadButton(){
+        Button saveButton = new Button(Clerk.view(),"Save");
+        saveButton.attachTo(() -> {
+            save();
+            Clerk.write(Clerk.view(), "Saved plot to savedPlot.csv");
+        });
+
+        Button loadButton = new Button(Clerk.view(),"Load");
+        loadButton.attachTo( () -> {
+            load();
+            Clerk.write(Clerk.view(), "Loaded plot from savedPlot.csv");
+            t1.reset();
+            drawFunction(function1);
+            drawPlotter();
+        });
+    }
+
+    void save() {
+        try (FileOutputStream fos = new FileOutputStream("savedPlot.csv");
+             OutputStreamWriter osw = new OutputStreamWriter(fos);
+             BufferedWriter bw = new BufferedWriter(osw)) {
+
+            if (function1 == null || function1.getFunction() == null) {
+                System.out.println("Function is null.");
+            }
+            bw.write(function1.getFunction().toString());
+            bw.newLine();
+
+            if (bounds == null || bounds.isEmpty()) {
+                bw.write("Bounds list is empty.");
+            } else {
+                String boundsString = bounds.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+                bw.write(boundsString);
+            }
+
+            bw.newLine();
+            System.out.println("File saved successfully.");
+
+        } catch (IOException e) {
+            System.err.println("An error occurred while saving the file: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            System.err.println("Invalid state: " + e.getMessage());
+        }
+    }
+
+    void load() {
+        try (FileInputStream fis = new FileInputStream("savedPlot.csv");
+             InputStreamReader isr = new InputStreamReader(fis);
+             BufferedReader br = new BufferedReader(isr)) {
+
+            String functionInput = br.readLine();
+            System.out.println(functionInput + "functionInput");
+            if (functionInput == null || functionInput.isEmpty()) {
+                System.err.println("No function found in file.");
+                return;
+            } else {
+                function1 = parseAndCreateFunction(functionInput, Color.BLUE);
+            }
+
+            String boundsInput = br.readLine();
+            System.out.println(boundsInput + "boundsInput");
+            if (boundsInput == null || boundsInput.isEmpty()) {
+                System.err.println("No bounds found in file.");
+                bounds.clear();
+            } else {
+                String[] boundsArray = boundsInput.split(",");
+                bounds.clear(); // Clear existing data
+                for (String bound : boundsArray) {
+                    try {
+                        bounds.add(Integer.parseInt(bound.trim()));
+                    } catch (NumberFormatException e) {
+                        System.err.println("Invalid number in bounds: " + bound);
+                    }
+                }
+            }
+
+            System.out.println("File loaded successfully.");
+
+        } catch (IOException e) {
+            System.err.println("Error while reading the file: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
     //-----------------------------------------Funktionen---------------------------------------------//
 
     /*
@@ -456,13 +557,6 @@ public class View {
         yMax = (yMax >= 1) ? yMax + 1 : yMax;
     }
 
-
-
-
-
-    void useParameter(boolean value) {
-
-    }
 
     //-----------------------------------Getter-und-Setter-------------------------//
 
@@ -597,11 +691,11 @@ class MathBib {
             boolean isNegative = functionInput.startsWith("-");
 
             if (functionInput.contains("sin")) {
-                return isNegative ? (x) -> -sin(x) : (x) -> sin(x);
+                return isNegative ? (x) -> -sin(x) : this::sin;
             } else if (functionInput.contains("cos")) {
-                return isNegative ? (x) -> -cos(x) : (x) -> cos(x);
+                return isNegative ? (x) -> -cos(x) : this::cos;
             } else if (functionInput.contains("tan")) {
-                return isNegative ? (x) -> -tan(x) : (x) -> tan(x);
+                return isNegative ? (x) -> -tan(x) : this::tan;
             }
         }
 
@@ -675,21 +769,25 @@ class MathBib {
             boolean isNegative = functionInput.endsWith("-a");
 
             // Rückgabe der jeweiligen Funktion mit der Konstante a
-            if (functionName.equals("sin")) {
-                return (x) -> {
-                    double result = sin(x); // Berechne sin(x)
-                    return isNegative ? result - a : result + a;
-                };
-            } else if (functionName.equals("cos")) {
-                return (x) -> {
-                    double result = cos(x); // Berechne cos(x)
-                    return isNegative ? result - a : result + a;
-                };
-            } else if (functionName.equals("tan")) {
-                return (x) -> {
-                    double result = tan(x); // Berechne tan(x)
-                    return isNegative ? result - a : result + a;
-                };
+            switch (functionName) {
+                case "sin" -> {
+                    return (x) -> {
+                        double result = sin(x); // Berechne sin(x)
+                        return isNegative ? result - a : result + a;
+                    };
+                }
+                case "cos" -> {
+                    return (x) -> {
+                        double result = cos(x); // Berechne cos(x)
+                        return isNegative ? result - a : result + a;
+                    };
+                }
+                case "tan" -> {
+                    return (x) -> {
+                        double result = tan(x); // Berechne tan(x)
+                        return isNegative ? result - a : result + a;
+                    };
+                }
             }
         }
         return null;

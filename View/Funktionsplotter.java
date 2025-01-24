@@ -14,12 +14,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class View {
+public class Funktionsplotter {
     private final int height = 600;
     private final int width = 600;
     int margin = 50;
     Function function1, function2, function3;
     MathBib mathbib = new MathBib();
+    Zoom zoom1 = new Zoom(-10,-10,10,10);
+    Zoom zoom2 = new Zoom(-10,-10,10,10);
 
     int halfWidth = width / 2;
     int halfHeight = height / 2;
@@ -82,30 +84,31 @@ public class View {
         initializeParameters();
         ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
         t1 = new Turtle(width, height);
+//        t2 = new Turtle(width, height);
 
-        drawPlotter();
+        drawPlotter(t1);
+//        drawPlotter(t2);
         drawUI();
-        t2 = new Turtle(width, height);
     }
 
     /*
         Zeichnet das gesamte Koordinatensystem mit der generierten tileSize
      */
-    void drawPlotter() {
+    void drawPlotter(Turtle t) {
         generateTileSizes();
-        drawGrid(plotWidth, plotHeight);
-        drawPlotterArea();
-        labelAxis();
+        drawGrid(t, plotWidth, plotHeight);
+        drawPlotterArea(t);
+        labelAxis(t);
 
         if (function1 != null) {
             if(useParameter) {
                 drawParameterFunctions();
             } else {
-                drawFunction(function1);
+                drawFunction(t, function1);
             }
         }
-        if (function2 != null) drawFunction(function2);
-        if (function3 != null) drawFunction(function3);
+        if (function2 != null) drawFunction(t, function2);
+        if (function3 != null) drawFunction(t, function3);
 
     }
 
@@ -123,8 +126,8 @@ public class View {
     /*
         Zeichnet den Rahmen und die Achsen
      */
-    public void drawPlotterArea() {
-        t1.color(0);
+    public void drawPlotterArea(Turtle t) {
+        t.color(0);
         // Grenzen abrufen
         xMin = bounds.get(0);
         xMax = bounds.get(2);
@@ -140,26 +143,26 @@ public class View {
         halfHeight = margin + plotHeight - (int) ((-yMin / yRange) * plotHeight);
 
         // Achsen zeichnen
-        t1.lineWidth(2);
-        t1.moveTo(halfWidth, margin); // y-Achse
-        t1.lineTo(halfWidth, margin + plotHeight);
-        t1.moveTo(margin, halfHeight); // x-Achse
-        t1.lineTo(margin + plotWidth, halfHeight);
-        t1.lineWidth(1);
+        t.lineWidth(2);
+        t.moveTo(halfWidth, margin); // y-Achse
+        t.lineTo(halfWidth, margin + plotHeight);
+        t.moveTo(margin, halfHeight); // x-Achse
+        t.lineTo(margin + plotWidth, halfHeight);
+        t.lineWidth(1);
 
         // Rahmen zeichnen
-        t1.moveTo(margin, margin); // oben
-        t1.lineTo(margin + plotWidth, margin); // rechts
-        t1.lineTo(margin + plotWidth, margin + plotHeight); // unten
-        t1.lineTo(margin, margin + plotHeight); // links
-        t1.lineTo(margin, margin); // zurück zum Startpunkt
+        t.moveTo(margin, margin); // oben
+        t.lineTo(margin + plotWidth, margin); // rechts
+        t.lineTo(margin + plotWidth, margin + plotHeight); // unten
+        t.lineTo(margin, margin + plotHeight); // links
+        t.lineTo(margin, margin); // zurück zum Startpunkt
     }
 
     /*
         Zeichnet die Kästchen des Koordinatensystems
     */
-    void drawGrid(int plotWidth, int plotHeight) {
-        t1.color(211, 211, 211);
+    void drawGrid(Turtle t, int plotWidth, int plotHeight) {
+        t.color(211, 211, 211);
 
         double xRange = xMax - xMin;
         double yRange = yMax - yMin;
@@ -173,29 +176,29 @@ public class View {
         // Vertikale Linien zeichnen (X-Achse)
         for (int i = 0; i <= xRange; i++) {
             int x = (int) (margin + i * pixelPerX);
-            t1.moveTo(x, margin);
-            t1.lineTo(x, bottom);
+            t.moveTo(x, margin);
+            t.lineTo(x, bottom);
         }
 
         // Horizontale Linien zeichnen (Y-Achse)
         for (int i = 0; i <= yRange; i++) {
             int y = (int) (margin + i * pixelPerY);
-            t1.moveTo(margin, y);
-            t1.lineTo(right, y);
+            t.moveTo(margin, y);
+            t.lineTo(right, y);
         }
     }
 
     /*
         Zeichnet die Funktion in das Koordinatensystem
      */
-    void drawFunction(Function function) {
+    void drawFunction(Turtle t, Function function) {
         try {
             if (function == null || function.function == null) {
                 System.err.println("Skipping drawing due to uninitialized function.");
                 return;
             }
 
-            t1.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
+            t.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
             double step = 0.01;
             double scaleX = (double) plotWidth / (bounds.get(2) - bounds.get(0));
             double scaleY = (double) plotHeight / (bounds.get(3) - bounds.get(1));
@@ -214,8 +217,8 @@ public class View {
                 double nextScreenX = (halfWidth + (x + step) * scaleX);
                 double nextScreenY = (halfHeight - nextY * scaleY);
 
-                t1.moveTo(screenX, screenY);
-                t1.lineTo(nextScreenX, nextScreenY);
+                t.moveTo(screenX, screenY);
+                t.lineTo(nextScreenX, nextScreenY);
             }
         } catch (Exception e) {
             System.err.println("Error drawing function: " + e.getMessage());
@@ -229,7 +232,7 @@ public class View {
     void drawParameterFunctions() {
         for (Function function : parameterFunctions1) {
             try {
-                drawFunction(function);
+                drawFunction(t1, function);
             } catch (Exception e) {
                 System.err.println("An error occurred in drawFunction: " + e.getMessage());
                 e.printStackTrace();
@@ -240,9 +243,9 @@ public class View {
     /*
         Beschriftet die Achsen
     */
-    void labelAxis() {
-        t1.color(0);
-        t1.left(90);
+    void labelAxis(Turtle t) {
+        t.color(0);
+        t.left(90);
 
         // X-Achse
         int xMin = bounds.get(0);
@@ -251,8 +254,8 @@ public class View {
         // X-Beschriftung
         for (int i = xMin; i <= xMax; i++) {
             int xPos = halfWidth + i * tileSizeX;
-            t1.moveTo(xPos, margin + plotHeight + 15);
-            t1.text(String.valueOf(i));
+            t.moveTo(xPos, margin + plotHeight + 15);
+            t.text(String.valueOf(i));
         }
 
         // Y-Achse
@@ -262,15 +265,15 @@ public class View {
         // Y-Beschriftung
         for (int i = yMin; i <= yMax; i++) {
             int yPos = halfHeight - i * tileSizeY;
-            t1.moveTo(margin - 15, yPos);
-            t1.text(String.valueOf(i));
+            t.moveTo(margin - 15, yPos);
+            t.text(String.valueOf(i));
         }
 
         // Ursprung (0,0)
-        t1.moveTo(margin - 15, halfHeight);
-        t1.text("0");
-        t1.moveTo(halfWidth, margin + plotHeight + 15);
-        t1.text("0");
+        t.moveTo(margin - 15, halfHeight);
+        t.text("0");
+        t.moveTo(halfWidth, margin + plotHeight + 15);
+        t.text("0");
     }
 
 
@@ -310,7 +313,7 @@ public class View {
             drawIfNotNull(function2);
             drawIfNotNull(function3);
             t1.reset();
-            drawPlotter();
+            drawPlotter(t1);
         });
     }
 
@@ -356,7 +359,7 @@ public class View {
 
     private void drawIfNotNull(Function function) {
         if (function != null && function.getFunction() != null) {
-            drawFunction(function);
+            drawFunction(t1, function);
         }
     }
 
@@ -379,7 +382,7 @@ public class View {
             setBounds(xMin, yMin, xMax, yMax);
             ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
             t1.reset();
-            drawPlotter();
+            drawPlotter(t1);
         });
     }
     private void createBoundsInput(String label, int defaultValue, Consumer<String> onChange) {
@@ -452,8 +455,13 @@ public class View {
     private void setupZoomSlider() {
         SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
         new Thread(() -> {
-            zoom(zoomSlider);
+            zoom(t1, zoomSlider, zoom1);
         }).start();
+
+//        SliderStufen zoomSlider2 = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
+//        new Thread(() -> {
+//            zoom(t2, zoomSlider2, zoom2);
+//        }).start();
     }
 
     /*
@@ -472,8 +480,8 @@ public class View {
             load();
             Clerk.write(Clerk.view(), "Loaded plot from savedPlot.csv");
             t1.reset();
-            drawPlotter();
-            drawFunction(function1);
+            drawPlotter(t1);
+            drawFunction(t1, function1);
         });
     }
 
@@ -559,54 +567,87 @@ public class View {
     /*
         Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
      */
-    void zoom(SliderStufen s) {
+    void zoom(Turtle t, SliderStufen s, Zoom zoom) {
         s.attachTo(response -> {
-            // temp gibt an, ob der Zoomwert steigt oder sinkt, also rein oder rauszoomen
-            int temp = (Integer.parseInt(response) - zoomValue);
-            zoomValue = Integer.parseInt(response);
+            int temp = (Integer.parseInt(response) - zoom.zoomValue);
+            zoom.zoomValue = Integer.parseInt(response);
             if(temp > 0) {
-                zoomOut(temp);
+                zoom.zoomOut();
             } else if (temp < 0) {
-                zoomIn(temp);
+                zoom.zoomIn();
             }
-            setBounds(xMin, yMin, xMax, yMax);
+            setBounds(zoom.xMin, zoom.yMin, zoom.xMax, zoom.yMax);
 
             new Thread(() -> {
-                t1.reset();
-                drawPlotter();
+                t.reset();
+                drawPlotter(t);
             }).start();
         });
     }
 
+
+}
+
+
+//-------------------------------------Klassen---------------------------------------//
+
+class TurtleSettings {
+    public int xMin, yMin, xMax, yMax;
+    public Zoom zoom;
+    public Turtle turtle;
+
+    TurtleSettings(int xMin, int yMin, int xMax, int yMax, Turtle turtle) {
+        this.xMin = xMin;
+        this.yMin = yMin;
+        this.xMax = xMax;
+        this.yMax = yMax;
+        this.turtle = turtle;
+        this.zoom = new Zoom(xMin, yMin, xMax, yMax);
+    }
+
+    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
+        this.xMin = xMin;
+        this.yMin = yMin;
+        this.xMax = xMax;
+        this.yMax = yMax;
+    }
+}
+
+class Zoom {
+    int xMin, yMin, xMax, yMax;
+    int zoomValue;
+
+
+    Zoom(int xMin, int yMin, int xMax, int yMax) {
+        this.xMin = xMin;
+        this.yMin = yMin;
+        this.xMax = xMax;
+        this.yMax = yMax;
+        this.zoomValue = 0;
+    }
+
     /*
-         Wenn der Slider-Wert steigt (Rauszoomen),
-        "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
-     */
-    void zoomOut(int temp) {
-        List<Runnable> updates = List.of(
-                () -> { if (ogCoordinates.getFirst() <= -1) xMin += 1; },
-                () -> { if (ogCoordinates.get(1) <= -1) yMin += 1; },
-                () -> { if (ogCoordinates.get(2) >= 1) xMax -= 1; },
-                () -> { if (ogCoordinates.get(3) >= 1) yMax -= 1; }
-        );
-        updates.forEach(Runnable::run);
+     Wenn der Slider-Wert steigt (Rauszoomen),
+    "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
+ */
+    void zoomOut() {
+        if (xMin < xMax - 2) xMin += 1;
+        if (yMin < yMax - 2) yMin += 1;
+        if (xMax > xMin + 2) xMax -= 1;
+        if (yMax > yMin + 2) yMax -= 1;
     }
 
     /*
          Wenn der Slider-Wert sinkt (Reinzoomen),
         verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
      */
-    void zoomIn(int temp) {
+    void zoomIn() {
         xMin = (xMin <= -1) ? xMin - 1 : xMin;
         yMin = (yMin <= -1) ? yMin - 1 : yMin;
         xMax = (xMax >= 1) ? xMax + 1 : xMax;
         yMax = (yMax >= 1) ? yMax + 1 : yMax;
     }
 }
-
-
-//-------------------------------------Klassen---------------------------------------//
-
 
 /*
     Die Enum Color definiert vordefinierte Farben (BLUE, RED, GREEN) mit ihren RGB-Werten.
@@ -946,7 +987,7 @@ class Checkbox implements Clerk {
 class Button implements Clerk {
     final String ID;
     LiveView view;
-    View v = new View();
+    Funktionsplotter v = new Funktionsplotter();
 
     Button(LiveView view, String label) {
         this.view = view;

@@ -26,7 +26,7 @@ public class Funktionsplotter {
     int halfWidth = width / 2;
     int halfHeight = height / 2;
     int plotWidth = width - 2 * margin;
-    int plotHeight = plotWidth;
+    int plotHeight = width - 2 * margin;
     int tileSizeX, tileSizeY;
     boolean useParameter = false;
     int zoomValue;
@@ -80,11 +80,13 @@ public class Funktionsplotter {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        t1 = new Turtle(width, height);
+//        t2 = new Turtle(width, height);
+
         initializeBounds();
         initializeParameters();
         ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
-        t1 = new Turtle(width, height);
-//        t2 = new Turtle(width, height);
 
         drawPlotter(t1);
 //        drawPlotter(t2);
@@ -320,14 +322,14 @@ public class Funktionsplotter {
     /*
         Erstellt die Funktions-Input-Felder
      */
-    void createFunctionInput(String label, Color color, Consumer<String> t) {
+    void createFunctionInput(String label, Color color, Consumer<String> action) {
         TextInput functionInput = new TextInput(Clerk.view(), label + "(x) = ", color.toString().toLowerCase(), label + "(x)" );
         functionInput.attachTo(delegate -> {
             functionMap.put(label, delegate);
             if(delegate.isEmpty()) {
-                t.accept(null);
+                action.accept(null);
             }
-            t.accept(delegate);
+            action.accept(delegate);
         });
     }
 
@@ -453,12 +455,12 @@ public class Funktionsplotter {
        Erstellt einen Slider zur Einstellung des Zooms und ruft die zoom() Methode auf.
     */
     private void setupZoomSlider() {
-        SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
+        SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom1.zoomValue);
         new Thread(() -> {
             zoom(t1, zoomSlider, zoom1);
         }).start();
 
-//        SliderStufen zoomSlider2 = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoomValue);
+//        SliderStufen zoomSlider2 = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom2.zoomValue);
 //        new Thread(() -> {
 //            zoom(t2, zoomSlider2, zoom2);
 //        }).start();

@@ -37,11 +37,12 @@ public class Funktionsplotter {
     List<Function> parameterFunctions1 = new ArrayList<>();
 
     int xMin, xMax, yMin, yMax;
-    int from, to;
+    int from = 1;
+    int to = 5;
 
     Map<String, String> functionMap = new HashMap<>();
 
-    private Turtle t1,t2;
+    private Turtle t1;
 
     //-------------------------------Initialize--------------------------//
 
@@ -68,8 +69,9 @@ public class Funktionsplotter {
             parameters.add(i);
         }
     }
-    //----------------------------draw-methods--------------------------//
 
+
+    //----------------------------draw-methods--------------------------//
     /*
         Initialisiert die LiveView, setzt die Grenzen und Parameter und zeichnet dann den Plotter und Benutzeroberfläche.
      */
@@ -82,21 +84,63 @@ public class Funktionsplotter {
         }
 
         t1 = new Turtle(width, height);
-//        t2 = new Turtle(width, height);
+
 
         initializeBounds();
         initializeParameters();
         ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
 
         drawPlotter(t1);
-//        drawPlotter(t2);
         drawUI();
+    }
+
+    //Anzeigebereich anpassen
+    void szenario1(Turtle t) {
+        setBounds(0,0,5,5);
+        drawPlotter(t);
+    }
+
+    //Zoom-Function
+    void szenario2(Turtle t) {
+        Zoom zoom2 = new Zoom(-10,-10,10,10);
+        function1 = parseAndCreateFunction("x^3", Color.BLUE);
+        zoom(t, 2, zoom2);
+        setBounds(zoom2.xMin,zoom2.yMin, zoom2.xMax, zoom2.yMax);
+        drawPlotter(t);
+    }
+
+    //Mehrere Funktionen gleichzeitig darstellen
+    void szenario3(Turtle t) {
+        function1 = parseAndCreateFunction("x^2", Color.BLUE);
+        function2 = parseAndCreateFunction("2x-5", Color.RED);
+        function3 = parseAndCreateFunction("sin(x)", Color.GREEN);
+
+        drawFunction(t, function1);
+        drawFunction(t, function2);
+        drawFunction(t, function3);
+    }
+
+    // Parameterabhängige Funktionen darstellen
+    void szenario4(Turtle t) {
+        useParameter = true;
+
+        function1 = parseAndCreateFunction("x+a", Color.BLUE);
+        drawParameterFunctions(t);
+        useParameter = false;
+    }
+
+    // Funktionen Speichern und Laden
+    void szenario5(Turtle t) {
+        function1 = parseAndCreateFunction("x^3", Color.BLUE);
+        drawFunction(t, function1);
+//        save();
     }
 
     /*
         Zeichnet das gesamte Koordinatensystem mit der generierten tileSize
      */
     void drawPlotter(Turtle t) {
+        t.reset();
         generateTileSizes();
         drawGrid(t, plotWidth, plotHeight);
         drawPlotterArea(t);
@@ -104,7 +148,7 @@ public class Funktionsplotter {
 
         if (function1 != null) {
             if(useParameter) {
-                drawParameterFunctions();
+                drawParameterFunctions(t1);
             } else {
                 drawFunction(t, function1);
             }
@@ -231,14 +275,9 @@ public class Funktionsplotter {
     /*
     Zeichnet alle Parameterfunktionen.
  */
-    void drawParameterFunctions() {
+    void drawParameterFunctions(Turtle t) {
         for (Function function : parameterFunctions1) {
-            try {
-                drawFunction(t1, function);
-            } catch (Exception e) {
-                System.err.println("An error occurred in drawFunction: " + e.getMessage());
-                e.printStackTrace();
-            }
+            drawFunction(t, function);
         }
     }
 
@@ -276,6 +315,15 @@ public class Funktionsplotter {
         t.text("0");
         t.moveTo(halfWidth, margin + plotHeight + 15);
         t.text("0");
+    }
+
+    void resetPlotter() {
+        initializeBounds();
+        initializeParameters();
+        ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
+        function1 = null;
+        function2 = null;
+        function3 = null;
     }
 
 
@@ -457,13 +505,10 @@ public class Funktionsplotter {
     private void setupZoomSlider() {
         SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom1.zoomValue);
         new Thread(() -> {
-            zoom(t1, zoomSlider, zoom1);
+            zoomSlider.attachTo( response -> {
+                zoom(t1, Integer.parseInt(response), zoom1);
+            });
         }).start();
-
-//        SliderStufen zoomSlider2 = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom2.zoomValue);
-//        new Thread(() -> {
-//            zoom(t2, zoomSlider2, zoom2);
-//        }).start();
     }
 
     /*
@@ -491,6 +536,7 @@ public class Funktionsplotter {
         Speichert die Funktion und die Grenzen in die Datei "savedPlot.csv"
      */
     void save() {
+        System.out.println(functionMap);
         try (FileOutputStream fos = new FileOutputStream("savedPlot.csv");
              OutputStreamWriter osw = new OutputStreamWriter(fos);
              BufferedWriter bw = new BufferedWriter(osw)) {
@@ -569,22 +615,20 @@ public class Funktionsplotter {
     /*
         Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
      */
-    void zoom(Turtle t, SliderStufen s, Zoom zoom) {
-        s.attachTo(response -> {
-            int temp = (Integer.parseInt(response) - zoom.zoomValue);
-            zoom.zoomValue = Integer.parseInt(response);
-            if(temp > 0) {
-                zoom.zoomOut();
-            } else if (temp < 0) {
-                zoom.zoomIn();
-            }
-            setBounds(zoom.xMin, zoom.yMin, zoom.xMax, zoom.yMax);
+    void zoom(Turtle t, int response, Zoom zoom) {
+        zoom.xMin = ogCoordinates.get(0);
+        zoom.yMin = ogCoordinates.get(1);
+        zoom.xMax = ogCoordinates.get(2);
+        zoom.yMax = ogCoordinates.get(3);
 
+        if(response < 0 || response > 5) {
+            System.err.println("Invalid zoom value: " + response + ". Should be between 0 and 5.");
+        } else {
+            setBounds(zoom.xMin + response, zoom.yMin + response, zoom.xMax - response, zoom.yMax -response);
             new Thread(() -> {
-                t.reset();
                 drawPlotter(t);
             }).start();
-        });
+        }
     }
 
 
@@ -593,32 +637,10 @@ public class Funktionsplotter {
 
 //-------------------------------------Klassen---------------------------------------//
 
-class TurtleSettings {
-    public int xMin, yMin, xMax, yMax;
-    public Zoom zoom;
-    public Turtle turtle;
-
-    TurtleSettings(int xMin, int yMin, int xMax, int yMax, Turtle turtle) {
-        this.xMin = xMin;
-        this.yMin = yMin;
-        this.xMax = xMax;
-        this.yMax = yMax;
-        this.turtle = turtle;
-        this.zoom = new Zoom(xMin, yMin, xMax, yMax);
-    }
-
-    public void setBounds(int xMin, int yMin, int xMax, int yMax) {
-        this.xMin = xMin;
-        this.yMin = yMin;
-        this.xMax = xMax;
-        this.yMax = yMax;
-    }
-}
 
 class Zoom {
     int xMin, yMin, xMax, yMax;
     int zoomValue;
-
 
     Zoom(int xMin, int yMin, int xMax, int yMax) {
         this.xMin = xMin;
@@ -628,27 +650,6 @@ class Zoom {
         this.zoomValue = 0;
     }
 
-    /*
-     Wenn der Slider-Wert steigt (Rauszoomen),
-    "vergrößern" wir xMin, yMin und verkleinern xMax, yMax
- */
-    void zoomOut() {
-        if (xMin < xMax - 2) xMin += 1;
-        if (yMin < yMax - 2) yMin += 1;
-        if (xMax > xMin + 2) xMax -= 1;
-        if (yMax > yMin + 2) yMax -= 1;
-    }
-
-    /*
-         Wenn der Slider-Wert sinkt (Reinzoomen),
-        verkleinern wir xMin, yMin und "vergrößern" xMax, yMax
-     */
-    void zoomIn() {
-        xMin = (xMin <= -1) ? xMin - 1 : xMin;
-        yMin = (yMin <= -1) ? yMin - 1 : yMin;
-        xMax = (xMax >= 1) ? xMax + 1 : xMax;
-        yMax = (yMax >= 1) ? yMax + 1 : yMax;
-    }
 }
 
 /*

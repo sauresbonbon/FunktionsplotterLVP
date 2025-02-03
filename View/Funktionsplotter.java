@@ -4,10 +4,7 @@ import skills.Text.*;
 import views.Turtle.*;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.regex.Matcher;
@@ -15,34 +12,47 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Funktionsplotter {
+    // Konstanten und allgemeine Größen
     private final int height = 600;
     private final int width = 600;
-    int margin = 50;
-    Function function1, function2, function3;
-    MathBib mathbib = new MathBib();
-    Zoom zoom1 = new Zoom(-10,-10,10,10);
-    Zoom zoom2 = new Zoom(-10,-10,10,10);
-
     int halfWidth = width / 2;
     int halfHeight = height / 2;
+    int margin = 50;
     int plotWidth = width - 2 * margin;
     int plotHeight = width - 2 * margin;
-    int tileSizeX, tileSizeY;
-    boolean useParameter = false;
-    int zoomValue;
+    double step = 0.05;
 
-    List<Integer> bounds = new ArrayList<>();
-    List<Integer> ogCoordinates;
-    List<Integer> parameters = new ArrayList<>();
+    // Zoom
+    Zoom zoom = new Zoom(-10,-10,10,10);
+
+    // Funktionen
+    Function function1, function2, function3;
     List<Function> parameterFunctions1 = new ArrayList<>();
+    List<Function> parameterFunctions2 = new ArrayList<>();
+    List<Function> parameterFunctions3 = new ArrayList<>();
+    Map<String, String> functionMap = new HashMap<>();
 
-    int xMin, xMax, yMin, yMax;
+
+    // Parameter und Koordinaten
+    List<Integer> bounds = new ArrayList<>();
+    List<Integer> initialBounds;
+    List<Integer> aInterval = new ArrayList<>();
+
+    // Plotter-Status
+    boolean useParameter = false;
     int from = 1;
     int to = 5;
 
-    Map<String, String> functionMap = new HashMap<>();
+    // Tile-Größe
+    int tileSizeX, tileSizeY;
 
-    private Turtle t1;
+    // Turtle
+    private Turtle t;
+
+    // Mathematische Bibliothek
+    MathBib mathbib = new MathBib();
+
+
 
     //-------------------------------Initialize--------------------------//
 
@@ -50,6 +60,7 @@ public class Funktionsplotter {
         Initialisiert die Grenzen
      */
     void initializeBounds() {
+        bounds.clear();
         //xMin
         bounds.add(-10);
         //yMin
@@ -65,32 +76,39 @@ public class Funktionsplotter {
         Initialisiert die Parameter
      */
     void initializeParameters() {
+        aInterval.clear();
         for (int i = 1; i <= 5; i++) {
-            parameters.add(i);
+            aInterval.add(i);
         }
     }
 
 
     //----------------------------draw-methods--------------------------//
     /*
-        Initialisiert die LiveView, setzt die Grenzen und Parameter und zeichnet dann den Plotter und Benutzeroberfläche.
-     */
+    Initialisiert die LiveView, setzt die Grenzen und Parameter und zeichnet dann den Plotter und Benutzeroberfläche.
+    */
     public void draw() {
         Clerk.view();
+
         try {
-            Thread.sleep(5000);
+            Thread.sleep(3000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
 
-        t1 = new Turtle(width, height);
+        Clerk.markdown(
+                Text.fillOut(
+                        """
+                # **Funktionsplotter**
+                """, Text.cutOut("./View/Funktionsplotter.java", "// Funktionsplotter")));
 
+        t = new Turtle(width, height);
 
         initializeBounds();
         initializeParameters();
-        ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
+        initialBounds = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
 
-        drawPlotter(t1);
+        drawPlotter(t);
         drawUI();
     }
 
@@ -102,18 +120,16 @@ public class Funktionsplotter {
 
     //Zoom-Function
     void szenario2(Turtle t) {
-        Zoom zoom2 = new Zoom(-10,-10,10,10);
-        function1 = parseAndCreateFunction("x^3", Color.BLUE);
-        zoom(t, 2, zoom2);
-        setBounds(zoom2.xMin,zoom2.yMin, zoom2.xMax, zoom2.yMax);
+        function1 = parseAndCreateFunction(function1,"x^3", Color.BLUE);
         drawPlotter(t);
+        zoom(t, 2, zoom);
     }
 
     //Mehrere Funktionen gleichzeitig darstellen
     void szenario3(Turtle t) {
-        function1 = parseAndCreateFunction("x^2", Color.BLUE);
-        function2 = parseAndCreateFunction("2x-5", Color.RED);
-        function3 = parseAndCreateFunction("sin(x)", Color.GREEN);
+        function1 = parseAndCreateFunction(function1,"x^2", Color.BLUE);
+        function2 = parseAndCreateFunction(function2,"2x-5", Color.RED);
+        function3 = parseAndCreateFunction(function3,"sin(x)", Color.GREEN);
 
         drawFunction(t, function1);
         drawFunction(t, function2);
@@ -124,16 +140,17 @@ public class Funktionsplotter {
     void szenario4(Turtle t) {
         useParameter = true;
 
-        function1 = parseAndCreateFunction("x+a", Color.BLUE);
-        drawParameterFunctions(t);
-        useParameter = false;
+        function1 = parseAndCreateFunction(function1,"x+a", Color.BLUE);
+        drawParameterFunctions(t, function1);
     }
 
     // Funktionen Speichern und Laden
     void szenario5(Turtle t) {
-        function1 = parseAndCreateFunction("x^3", Color.BLUE);
-        drawFunction(t, function1);
-//        save();
+        function1 = parseAndCreateFunction(function1,"x^3", Color.BLUE);
+        function2 = parseAndCreateFunction(function2,"2x-5", Color.RED);
+        setBounds(0,-3,7,7);
+
+        drawPlotter(t);
     }
 
     /*
@@ -146,15 +163,15 @@ public class Funktionsplotter {
         drawPlotterArea(t);
         labelAxis(t);
 
-        if (function1 != null) {
-            if(useParameter) {
-                drawParameterFunctions(t1);
-            } else {
-                drawFunction(t, function1);
+        for (Function func : new Function[]{function1, function2, function3}) {
+            if (func != null) {
+                if (useParameter) {
+                    drawParameterFunctions(t, func);
+                } else {
+                    drawFunction(t, func);
+                }
             }
         }
-        if (function2 != null) drawFunction(t, function2);
-        if (function3 != null) drawFunction(t, function3);
 
     }
 
@@ -163,9 +180,29 @@ public class Funktionsplotter {
      */
     void drawUI() {
         setupFunctions();
+        Clerk.markdown(
+                Text.fillOut(
+                        """
+                ---
+                """, Text.cutOut("./View/Funktionsplotter.java", "// Funktionsplotter")));
         setupBoundsInput();
+        Clerk.markdown(
+                Text.fillOut(
+                        """
+                ---
+                """, Text.cutOut("./View/Funktionsplotter.java", "// Funktionsplotter")));
         setupParameterInput();
+        Clerk.markdown(
+                Text.fillOut(
+                        """
+                ---
+                """, Text.cutOut("./View/Funktionsplotter.java", "// Funktionsplotter")));
         setupZoomSlider();
+        Clerk.markdown(
+                Text.fillOut(
+                        """
+                ---
+                """, Text.cutOut("./View/Funktionsplotter.java", "// Funktionsplotter")));
         setupSaveAndLoadButton();
     }
 
@@ -174,19 +211,14 @@ public class Funktionsplotter {
      */
     public void drawPlotterArea(Turtle t) {
         t.color(0);
-        // Grenzen abrufen
-        xMin = bounds.get(0);
-        xMax = bounds.get(2);
-        yMin = bounds.get(1);
-        yMax = bounds.get(3);
 
         // Dynamisch den Ursprung berechnen
-        double xRange = xMax - xMin;
-        double yRange = yMax - yMin;
+        double xRange = bounds.get(2) - bounds.get(0);
+        double yRange = bounds.get(3) - bounds.get(1);
 
         // Ursprungskoordinaten basierend auf den Grenzen
-        halfWidth = margin + (int) ((-xMin / xRange) * plotWidth);
-        halfHeight = margin + plotHeight - (int) ((-yMin / yRange) * plotHeight);
+        halfWidth = margin + (int) ((-bounds.get(0) / xRange) * plotWidth);
+        halfHeight = margin + plotHeight - (int) ((-bounds.get(1) / yRange) * plotHeight);
 
         // Achsen zeichnen
         t.lineWidth(2);
@@ -210,8 +242,8 @@ public class Funktionsplotter {
     void drawGrid(Turtle t, int plotWidth, int plotHeight) {
         t.color(211, 211, 211);
 
-        double xRange = xMax - xMin;
-        double yRange = yMax - yMin;
+        double xRange = bounds.get(2) - bounds.get(0);
+        double yRange = bounds.get(3) - bounds.get(1);
 
         double pixelPerX = plotWidth / xRange;
         double pixelPerY = plotHeight / yRange;
@@ -219,14 +251,12 @@ public class Funktionsplotter {
         int right = margin + plotWidth;
         int bottom = margin + plotHeight;
 
-        // Vertikale Linien zeichnen (X-Achse)
         for (int i = 0; i <= xRange; i++) {
             int x = (int) (margin + i * pixelPerX);
             t.moveTo(x, margin);
             t.lineTo(x, bottom);
         }
 
-        // Horizontale Linien zeichnen (Y-Achse)
         for (int i = 0; i <= yRange; i++) {
             int y = (int) (margin + i * pixelPerY);
             t.moveTo(margin, y);
@@ -238,47 +268,90 @@ public class Funktionsplotter {
         Zeichnet die Funktion in das Koordinatensystem
      */
     void drawFunction(Turtle t, Function function) {
-        try {
-            if (function == null || function.function == null) {
-                System.err.println("Skipping drawing due to uninitialized function.");
-                return;
+        if (function == null || function.function == null) return;
+
+        t.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
+
+        double scaleX = (double) plotWidth / (bounds.get(2) - bounds.get(0));
+        double scaleY = (double) plotHeight / (bounds.get(3) - bounds.get(1));
+
+        for (double x = bounds.get(0); x <= bounds.get(2); x += step) {
+            double y = function.function.applyAsDouble(x);
+            if (y < bounds.get(1) || y > bounds.get(3)) continue;
+
+            double screenX = (halfWidth + x * scaleX);
+            double screenY = (halfHeight - y * scaleY);
+
+            double[] adjustedCoordinates = adjustCoordinates(y, scaleY, bounds.get(1), bounds.get(3));
+            screenY = adjustedCoordinates[0];
+            y = adjustedCoordinates[1];
+
+            if (y < bounds.get(1) || y > bounds.get(3)) continue;
+
+
+            double nextX = x + step;
+            double nextY = function.function.applyAsDouble(nextX);
+
+            double minStep = step/16;
+            while ((nextY > bounds.get(3) || nextY < bounds.get(1)) && step > minStep) {
+                System.out.println("Step: "+step);
+                System.out.println("NextY: "+nextY);
+                step /= 2;
+                nextX = x + step;
+                nextY = function.function.applyAsDouble(nextX);
             }
 
-            t.color(function.color.getRed(), function.color.getGreen(), function.color.getBlue());
-            double step = 0.01;
-            double scaleX = (double) plotWidth / (bounds.get(2) - bounds.get(0));
-            double scaleY = (double) plotHeight / (bounds.get(3) - bounds.get(1));
+            double nextScreenX = (halfWidth + nextX * scaleX);
+            double nextScreenY = (halfHeight - nextY * scaleY);
 
-            for (double x = xMin; x <= xMax; x += step) {
-                if(x > xMax) break;
-                double y = function.function.applyAsDouble(x);
-                if (Double.isNaN(y) || Double.isInfinite(y) || y < yMin || y > yMax) continue;
+            adjustedCoordinates = adjustCoordinates(nextY, scaleY, bounds.get(1), bounds.get(3));
+            nextScreenY = adjustedCoordinates[0];
+            nextY = adjustedCoordinates[1];
 
-                double screenX = (halfWidth + x * scaleX);
-                double screenY = (halfHeight - y * scaleY);
-
-                double nextY = function.function.applyAsDouble(x + step);
-                if (Double.isNaN(nextY) || Double.isInfinite(nextY) || nextY < yMin || nextY > yMax) continue;
-
-                double nextScreenX = (halfWidth + (x + step) * scaleX);
-                double nextScreenY = (halfHeight - nextY * scaleY);
-
+            if (!(Double.isNaN(y) || Double.isInfinite(y)) && !(Double.isNaN(nextY) || Double.isInfinite(nextY))) {
                 t.moveTo(screenX, screenY);
                 t.lineTo(nextScreenX, nextScreenY);
             }
-        } catch (Exception e) {
-            System.err.println("Error drawing function: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
     /*
-    Zeichnet alle Parameterfunktionen.
- */
-    void drawParameterFunctions(Turtle t) {
-        for (Function function : parameterFunctions1) {
-            drawFunction(t, function);
+        Berechnet die Bildschirmkoordinaten für den y-Wert und begrenzt ihn innerhalb der angegebenen Grenzen.
+     */
+    private double[] adjustCoordinates(double y, double scaleY, double lowerBound, double upperBound) {
+        double screenY = halfHeight - y * scaleY;
+        if (y < lowerBound) {
+            y = lowerBound;
+            screenY = (halfHeight - y * scaleY);
+        } else if (y > upperBound) {
+            y = upperBound;
+            screenY = (halfHeight - y * scaleY);
         }
+        return new double[] { screenY, y };
+    }
+
+
+    /*
+    Zeichnet alle Parameterfunktionen.
+    */
+    void drawParameterFunctions(Turtle t, Function function) {
+
+        if(function1 == function) {
+            for (Function functionI : parameterFunctions1) {
+                drawFunction(t, functionI);
+            }
+        }
+        if(function2 == function) {
+            for (Function functionI : parameterFunctions2) {
+                drawFunction(t, functionI);
+            }
+        }
+        if(function3 == function) {
+            for (Function functionI : parameterFunctions3) {
+                drawFunction(t, functionI);
+            }
+        }
+
     }
 
     /*
@@ -288,42 +361,44 @@ public class Funktionsplotter {
         t.color(0);
         t.left(90);
 
-        // X-Achse
         int xMin = bounds.get(0);
         int xMax = bounds.get(2);
 
-        // X-Beschriftung
         for (int i = xMin; i <= xMax; i++) {
             int xPos = halfWidth + i * tileSizeX;
             t.moveTo(xPos, margin + plotHeight + 15);
             t.text(String.valueOf(i));
         }
 
-        // Y-Achse
         int yMin = bounds.get(1);
         int yMax = bounds.get(3);
 
-        // Y-Beschriftung
         for (int i = yMin; i <= yMax; i++) {
             int yPos = halfHeight - i * tileSizeY;
             t.moveTo(margin - 15, yPos);
             t.text(String.valueOf(i));
         }
 
-        // Ursprung (0,0)
         t.moveTo(margin - 15, halfHeight);
         t.text("0");
         t.moveTo(halfWidth, margin + plotHeight + 15);
         t.text("0");
     }
 
-    void resetPlotter() {
+    /*
+        Setzt den Plotter zurück, initialisiert die Grenzen und Parameter neu und setzt die Funktionen zurück.
+        Danach wird der Plotter neu gezeichnet.
+     */
+    void resetPlotter(Turtle t) {
+        t.reset();
+        useParameter = false;
         initializeBounds();
         initializeParameters();
-        ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
+        initialBounds = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
         function1 = null;
         function2 = null;
         function3 = null;
+        drawPlotter(t);
     }
 
 
@@ -334,14 +409,10 @@ public class Funktionsplotter {
    */
     void generateTileSizes() {
         List<Integer> coordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
-        xMin = coordinates.get(0);
-        xMax = coordinates.get(2);
-        yMin = coordinates.get(1);
-        yMax = coordinates.get(3);
 
         // Anzahl der Schritte berechnen
-        int xSteps = xMax - xMin;
-        int ySteps = yMax - yMin;
+        int xSteps = coordinates.get(2) - coordinates.get(0);
+        int ySteps = coordinates.get(3) - coordinates.get(1);
 
         // Schrittgrößen berechnen
         tileSizeX = plotWidth / xSteps;
@@ -353,17 +424,16 @@ public class Funktionsplotter {
         um eine mathematische Funktion zu definieren und anzuzeigen.
      */
     private void setupFunctions() {
-        createFunctionInput("f", Color.BLUE, delegate -> function1 = parseAndCreateFunction(delegate, Color.BLUE));
-        createFunctionInput("g", Color.RED, delegate -> function2 = parseAndCreateFunction(delegate, Color.RED));
-        createFunctionInput("h", Color.GREEN, delegate -> function3 = parseAndCreateFunction(delegate, Color.GREEN));
+        createFunctionInput("f", Color.BLUE, delegate -> function1 = parseAndCreateFunction(function1, delegate, Color.BLUE));
+        createFunctionInput("g", Color.RED, delegate -> function2 = parseAndCreateFunction(function2, delegate, Color.RED));
+        createFunctionInput("h", Color.GREEN, delegate -> function3 = parseAndCreateFunction(function3, delegate, Color.GREEN));
 
         Button functionButton = new Button(Clerk.view(), "Generate");
         functionButton.attachTo(() -> {
             drawIfNotNull(function1);
             drawIfNotNull(function2);
             drawIfNotNull(function3);
-            t1.reset();
-            drawPlotter(t1);
+            drawPlotter(t);
         });
     }
 
@@ -373,7 +443,6 @@ public class Funktionsplotter {
     void createFunctionInput(String label, Color color, Consumer<String> action) {
         TextInput functionInput = new TextInput(Clerk.view(), label + "(x) = ", color.toString().toLowerCase(), label + "(x)" );
         functionInput.attachTo(delegate -> {
-            functionMap.put(label, delegate);
             if(delegate.isEmpty()) {
                 action.accept(null);
             }
@@ -385,31 +454,40 @@ public class Funktionsplotter {
         Parst die Eingabe, um eine Funktion zu erstellen, und gibt sie zusammen mit der Farbe zurück.
         Unterstützt sowohl Funktionen mit Parametern als auch einfache Funktionen ohne Parameter.
      */
-    Function parseAndCreateFunction(String input, Color color) {
-        if(input == null)return null;
+    Function parseAndCreateFunction(Function function, String input, Color color) {
+        String key = function == function1 ? "f" : function == function2 ? "g" : function == function3 ? "h" : null;
+        if (key != null) functionMap.put(key, input);
+
+        if (input == null) return null;
         DoubleUnaryOperator newFunction = null;
 
-        if(useParameter) {
-            parameterFunctions1.clear();
-            for (Integer parameter : parameters) {
+        List<Function> parameterFunctions = null;
+        if (function == function1) parameterFunctions = parameterFunctions1;
+        else if (function == function2) parameterFunctions = parameterFunctions2;
+        else if (function == function3) parameterFunctions = parameterFunctions3;
+
+        if (parameterFunctions != null) {
+            parameterFunctions.clear();
+            for (Integer parameter : aInterval) {
                 newFunction = mathbib.parseParameter(input, parameter);
                 if (newFunction != null) {
-                    parameterFunctions1.add(new Function(newFunction, color));
+                    parameterFunctions.add(new Function(newFunction, color));
                 }
             }
-
-        } else {
-            newFunction = mathbib.parseFunction(input);
-            if(newFunction != null) {
-                System.err.println("Failed to parse function for input: " + input);
-            }
         }
+
+        newFunction = mathbib.parseFunction(input);
+
         return newFunction != null ? new Function(newFunction, color) : null;
     }
 
+
+    /*
+        Zeichnet die Funktion, wenn sie nicht null ist und eine gültige Funktionsreferenz enthält.
+     */
     private void drawIfNotNull(Function function) {
         if (function != null && function.getFunction() != null) {
-            drawFunction(t1, function);
+            drawFunction(t, function);
         }
     }
 
@@ -422,19 +500,23 @@ public class Funktionsplotter {
     private void setupBoundsInput() {
         Clerk.write(Clerk.view(), "Grenzen setzen");
 
-        createBoundsInput("xMin", bounds.get(0), value -> xMin = Integer.parseInt(value));
-        createBoundsInput("xMax", bounds.get(2), value -> xMax = Integer.parseInt(value));
-        createBoundsInput("yMin", bounds.get(1), value -> yMin = Integer.parseInt(value));
-        createBoundsInput("yMax", bounds.get(3), value -> yMax = Integer.parseInt(value));
+        createBoundsInput("xMin", bounds.get(0), value -> bounds.set(0, Integer.parseInt(value)));
+        createBoundsInput("xMax", bounds.get(2), value -> bounds.set(2, Integer.parseInt(value)));
+        createBoundsInput("yMin", bounds.get(1), value -> bounds.set(1, Integer.parseInt(value)));
+        createBoundsInput("yMax", bounds.get(3), value -> bounds.set(3, Integer.parseInt(value)));
 
         Button setBoundsButton = new Button(Clerk.view(), "Set bounds");
         setBoundsButton.attachTo(() -> {
-            setBounds(xMin, yMin, xMax, yMax);
-            ogCoordinates = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
-            t1.reset();
-            drawPlotter(t1);
+            setBounds(bounds.get(0), bounds.get(1), bounds.get(2), bounds.get(3));
+            initialBounds = bounds.stream().mapToInt(Integer::intValue).boxed().collect(Collectors.toList());
+            t.reset();
+            drawPlotter(t);
         });
     }
+
+    /*
+        Erstellt ein Eingabefeld für eine Ganzzahl mit einem Standardwert und einer Änderungsaktion.
+     */
     private void createBoundsInput(String label, int defaultValue, Consumer<String> onChange) {
         IntegerInput input = new IntegerInput(Clerk.view(), label, label,  defaultValue);
         input.attachTo(onChange);
@@ -442,7 +524,7 @@ public class Funktionsplotter {
 
     /*
     Setzt die Grenzen (Bounds) mit den gegebenen Werten
- */
+    */
     public void setBounds(int xMin, int yMin, int xMax, int yMax) {
         if(xMin >= xMax) {
             System.out.println("xMin muss kleiner als xMax sein. (xMin = " + xMin + ", xMax = " + xMax + ")");
@@ -461,7 +543,7 @@ public class Funktionsplotter {
     /*
     Erstellt eine Checkbox und Eingabefelder für die Definition eines Parameter-Intervalls.
     Wenn die Checkbox aktiviert wird, wird der Parameterbereich für die Funktion f(x;a) gesetzt.
- */
+    */
     private void setupParameterInput() {
         Checkbox parameterCheckbox = new Checkbox(Clerk.view(), "Solve function as f(x;a) with");
         createParameterInput("from", 1, value -> from = Integer.parseInt(value));
@@ -470,7 +552,7 @@ public class Funktionsplotter {
 
         parameterButton.attachTo(() -> {
             if( from < to) {
-                updateParameterInput();
+                updateInterval(from, to);
             } else {
                 System.err.println("Invalid parameter range: 'from' must be less than 'to'");
             }
@@ -491,22 +573,21 @@ public class Funktionsplotter {
     /*
         Aktualisiert die Liste der Parameter basierend auf den Grenzen 'from' und 'to'.
      */
-    void updateParameterInput() {
-        parameters.clear();
+    void updateInterval(int from, int to) {
+        aInterval.clear();
         for (int i = from; i <= to; i++) {
-            parameters.add(i);
+            aInterval.add(i);
         }
-        System.out.println("Updated parameters: " + parameters);
     }
 
     /*
        Erstellt einen Slider zur Einstellung des Zooms und ruft die zoom() Methode auf.
     */
     private void setupZoomSlider() {
-        SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom1.zoomValue);
+        SliderStufen zoomSlider = new SliderStufen(Clerk.view(), 0, 5, "Zoom",0, zoom.zoomValue);
         new Thread(() -> {
             zoomSlider.attachTo( response -> {
-                zoom(t1, Integer.parseInt(response), zoom1);
+                zoom(t, Integer.parseInt(response), zoom);
             });
         }).start();
     }
@@ -524,29 +605,29 @@ public class Funktionsplotter {
 
         Button loadButton = new Button(Clerk.view(),"Load");
         loadButton.attachTo( () -> {
-            load();
+            load(t);
             Clerk.write(Clerk.view(), "Loaded plot from savedPlot.csv");
-            t1.reset();
-            drawPlotter(t1);
-            drawFunction(t1, function1);
+
         });
     }
+
+    //-----------------------------------------Funktionen---------------------------------------------//
+
 
     /*
         Speichert die Funktion und die Grenzen in die Datei "savedPlot.csv"
      */
     void save() {
-        System.out.println(functionMap);
         try (FileOutputStream fos = new FileOutputStream("savedPlot.csv");
              OutputStreamWriter osw = new OutputStreamWriter(fos);
              BufferedWriter bw = new BufferedWriter(osw)) {
 
-            if (function1 == null || function1.getFunction() == null) {
-                System.out.println("Function is null.");
-            }
-            bw.write(functionMap.get("f"));
-            bw.newLine();
+            // Funktionen speichern
+            saveFunction(function1, "f", bw);
+            saveFunction(function2, "g", bw);
+            saveFunction(function3, "h", bw);
 
+            // Bounds speichern
             if (bounds == null || bounds.isEmpty()) {
                 bw.write("Bounds list is empty.");
             } else {
@@ -567,30 +648,39 @@ public class Funktionsplotter {
     }
 
     /*
+        Speichert die Funktion in eine Datei.
+     */
+    private void saveFunction(Function function, String functionKey, BufferedWriter bw) throws IOException {
+        if (function == null || function.getFunction() == null) {
+            bw.write("null");
+        } else {
+            bw.write(functionMap.get(functionKey));
+        }
+        bw.newLine();
+    }
+
+
+
+    /*
         Lädt die Funktion und Grenzen aus der Datei "savedPlot.csv"
      */
-    void load() {
+    void load(Turtle t) {
         try (FileInputStream fis = new FileInputStream("savedPlot.csv");
              InputStreamReader isr = new InputStreamReader(fis);
              BufferedReader br = new BufferedReader(isr)) {
 
-            String functionInput = br.readLine();
-            System.out.println(functionInput + "functionInput");
-            if (functionInput == null || functionInput.isEmpty()) {
-                System.err.println("No function found in file.");
-                return;
-            } else {
-                function1 = parseAndCreateFunction(functionInput, Color.BLUE);
-            }
+            function1 = loadFunction(br, "function1", Color.BLUE);
+            function2 = loadFunction(br, "function2", Color.RED);
+            function3 = loadFunction(br, "function3", Color.GREEN);
 
             String boundsInput = br.readLine();
-            System.out.println(boundsInput + "boundsInput");
+
             if (boundsInput == null || boundsInput.isEmpty()) {
                 System.err.println("No bounds found in file.");
                 bounds.clear();
             } else {
                 String[] boundsArray = boundsInput.split(",");
-                bounds.clear(); // Clear existing data
+                bounds.clear();
                 for (String bound : boundsArray) {
                     try {
                         bounds.add(Integer.parseInt(bound.trim()));
@@ -598,40 +688,60 @@ public class Funktionsplotter {
                         System.err.println("Invalid number in bounds: " + bound);
                     }
                 }
+                setBounds(bounds.get(0), bounds.get(1), bounds.get(2), bounds.get(3));
             }
 
-            System.out.println("File loaded successfully.");
+
+            initialBounds = new ArrayList<>(bounds);
+
+            drawPlotter(t);
+            drawFunction(t, function1);
+            drawFunction(t, function2);
+            drawFunction(t, function3);
 
         } catch (IOException e) {
-            System.err.println("Error while reading the file: " + e.getMessage());
-            throw new RuntimeException(e);
+            System.err.println("An error occurred while loading the file: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            System.err.println("Invalid state: " + e.getMessage());
         }
     }
 
+    /*
+        Lädt eine Funktion aus einer Datei.
+     */
+    private Function loadFunction(BufferedReader br, String functionName, Color color) throws IOException {
+        String functionInput = br.readLine();
 
+        if (functionInput == null || functionInput.isEmpty()) {
+            return null;
+        } else if ("null".equals(functionInput)) {
+            return null;
+        } else {
+            return parseAndCreateFunction(null, functionInput, color);
+        }
+    }
 
-    //-----------------------------------------Funktionen---------------------------------------------//
 
     /*
         Der Slider passt die Grenzen der Achsen an und aktualisiert die Darstellung des Diagramms.
      */
     void zoom(Turtle t, int response, Zoom zoom) {
-        zoom.xMin = ogCoordinates.get(0);
-        zoom.yMin = ogCoordinates.get(1);
-        zoom.xMax = ogCoordinates.get(2);
-        zoom.yMax = ogCoordinates.get(3);
+        zoom.xMin = initialBounds.get(0);
+        zoom.yMin = initialBounds.get(1);
+        zoom.xMax = initialBounds.get(2);
+        zoom.yMax = initialBounds.get(3);
 
         if(response < 0 || response > 5) {
             System.err.println("Invalid zoom value: " + response + ". Should be between 0 and 5.");
         } else {
             setBounds(zoom.xMin + response, zoom.yMin + response, zoom.xMax - response, zoom.yMax -response);
-            new Thread(() -> {
-                drawPlotter(t);
-            }).start();
+            zoom.xMin = bounds.get(0);
+            zoom.yMin = bounds.get(1);
+            zoom.xMax = bounds.get(2);
+            zoom.yMax = bounds.get(3);
+            drawPlotter(t);
         }
     }
-
-
 }
 
 
@@ -689,7 +799,6 @@ enum Color {
 class Function {
     public DoubleUnaryOperator function;
     public Color color;
-    public String functionInput;
 
     public Function(DoubleUnaryOperator function, Color color) {
         this.function = function;
@@ -721,10 +830,9 @@ class MathBib {
         if (functionInput == null || functionInput.isBlank()) {
             throw new IllegalArgumentException("Eingabe darf nicht leer sein");
         }
+        functionInput = functionInput.replaceAll("\\s+", "");
 
-        functionInput = functionInput.replaceAll("\\s+", ""); // Entfernt alle Leerzeichen
-
-        if (functionInput.matches("^[+-]?(\\d+)?x([+-]?\\d+)?$")) {
+        if (functionInput.matches("^[+-]?(\\d+)?x([+-]\\d+)?$")) {
             return parseLinear(functionInput);
         }
 
@@ -742,7 +850,7 @@ class MathBib {
         Parst eine Lineare Funktion (x+2) mit optionalem Vorzeichen (+ oder -).
      */
     private DoubleUnaryOperator parseLinear(String functionInput) {
-        Pattern pattern = Pattern.compile("([+-]?(\\d+)?)x([+-]?\\d+)?");
+        Pattern pattern = Pattern.compile("([+-]?(\\d+)?)x([+-]\\d+)?");
         Matcher matcher = pattern.matcher(functionInput);
 
         if (matcher.matches()) {
@@ -766,8 +874,15 @@ class MathBib {
                 parts[0].equals("-") ? -1 : Integer.parseInt(parts[0]);
         final int power = Integer.parseInt(parts[1]);
 
-        return (x) -> coefficient * Math.pow(x, power);
+        return (x) -> {
+            double result = 1;
+            for (int i = 0; i < power; i++) {
+                result *= x;
+            }
+            return coefficient * result;
+        };
     }
+
 
     /*
         Parst eine trigonometrische Funktion (sin(x), cos(x), tan(x)) mit optionalem Vorzeichen (+ oder -).
@@ -796,7 +911,7 @@ class MathBib {
         double term = x;
         int sign = 1;
 
-        for (int i = 1; i <= 30; i++) {
+        for (int i = 1; i <= 50; i++) {
             result += sign * term;
             sign = -sign;
             term *= x * x / (2 * i * (2 * i + 1));
@@ -813,7 +928,7 @@ class MathBib {
         double term = 1;
         int sign = -1;
 
-        for (int i = 0; i < 30; i+=2) { // i < 30 WARUM?
+        for (int i = 0; i < 50; i+=2) {
             term *= x * x/((i+1)*(i+2));
             result += sign * term;
             sign = -sign;
@@ -836,58 +951,59 @@ class MathBib {
      */
     DoubleUnaryOperator parseParameter(String functionInput, int a) {
         functionInput = functionInput.replaceAll("\\s", "");
+        String cleanedInput = functionInput.toLowerCase();
 
-        // Erkenne den Fall x + a oder x - a
         if (functionInput.matches("^[+-]?[xX][+-]?a$")) {
-            String cleanedInput = functionInput.toLowerCase();
-            if (cleanedInput.matches("x[+-]a")) {
-                char operator = cleanedInput.charAt(1);  // '+' oder '-'
-                return (x) -> operator == '+' ? x + a : x - a;
-            } else {
-                System.err.println("Invalid parameterized function format: " + functionInput);
-            }
+            char operator = cleanedInput.charAt(1);
+            return (x) -> operator == '+' ? x + a : x - a;
         }
-        // Erkenne den Fall x^2 + a oder x^2 - a
-        else if (functionInput.matches("^[+-]?[xX]\\^2[+-]?a$")) {
-            String cleanedInput = functionInput.toLowerCase();
-            char operator = cleanedInput.charAt(3);  // '+' oder '-'
+
+        if (functionInput.matches("^[+-]?[xX]\\^\\d+[+-]?a$")) {
+            int powerStartIndex = cleanedInput.indexOf("^") + 1;
+            int powerEndIndex = cleanedInput.indexOf("+") > -1 ? cleanedInput.indexOf("+") : cleanedInput.indexOf("-");
+
+            if (powerEndIndex == -1) {
+                powerEndIndex = cleanedInput.length();
+            }
+
+            int power = Integer.parseInt(cleanedInput.substring(powerStartIndex, powerEndIndex));
+            char operator = cleanedInput.charAt(powerEndIndex);
 
             return (x) -> {
-                double result = Math.pow(x, 2);  // Berechne x^2
+                double result = 1;
+                for (int i = 0; i < power; i++) {
+                    result *= x;
+                }
                 return operator == '+' ? result + a : result - a;
             };
         }
 
-        else if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)[+-]a$")) {
-            String functionName = functionInput.replaceAll("\\(x\\)[+-]?a$", "");
-            boolean isNegative = functionInput.endsWith("-a");
-
-            // Rückgabe der jeweiligen Funktion mit der Konstante a
-            switch (functionName) {
-                case "sin" -> {
-                    return (x) -> {
-                        double result = sin(x); // Berechne sin(x)
-                        return isNegative ? result - a : result + a;
-                    };
-                }
-                case "cos" -> {
-                    return (x) -> {
-                        double result = cos(x); // Berechne cos(x)
-                        return isNegative ? result - a : result + a;
-                    };
-                }
-                case "tan" -> {
-                    return (x) -> {
-                        double result = tan(x); // Berechne tan(x)
-                        return isNegative ? result - a : result + a;
-                    };
-                }
-            }
+        if (functionInput.matches("^[+-]?(sin|cos|tan|sqrt)\\(x\\)[+-]?a$")) {
+            String functionName = cleanedInput.replaceAll("\\(x\\)[+-]?a$", "");
+            boolean isNegative = cleanedInput.endsWith("-a");
+            return getTrigFunction(functionName, isNegative, a);
         }
+
         return null;
     }
-}
 
+    /*
+        Gibt eine Funktion zurück, die den trigonometrischen Wert (sin, cos, tan) von x berechnet
+        und den Wert a entweder addiert oder subtrahiert, je nachdem, ob isNegative wahr oder falsch ist.
+     */
+    private DoubleUnaryOperator getTrigFunction(String functionName, boolean isNegative, int a) {
+        return (x) -> {
+            double result;
+            switch (functionName) {
+                case "sin": result = sin(x); break;
+                case "cos": result = cos(x); break;
+                case "tan": result = tan(x); break;
+                default: return 0;
+            }
+            return isNegative ? result - a : result + a;
+        };
+    }
+}
 /*
     Erstellt ein Texteingabefeld
  */
@@ -1084,21 +1200,31 @@ class SliderStufen implements Clerk {
         // Server-seitige Verbindung erstellen
         this.view.createResponseContext("/slider" + ID, delegate, ID);
 
-        // JavaScript: Event-Listener für den Slider
+        // JavaScript: Event-Listener für den Slider mit Debounce (1 Sekunde Verzögerung)
         Clerk.script(view, Text.fillOut(
                 """
-                        slider${0}.addEventListener('input', (event) => {
-                            const value = event.target.value;
-                            console.log("slider${0}: value = " + value);
-                            valueDisplay${0}.textContent = value; // Aktualisiere Wertanzeige
-                            fetch('slider${0}', {
-                                method: 'post',
-                                body: value.toString()
-                            }).catch(console.error);
-                        });
-                        """, Map.of("0", ID)));
+                let slider${0}Timeout;
+                slider${0}.addEventListener('input', (event) => {
+                    const value = event.target.value;
+                    console.log("slider${0}: value = " + value);
+                    valueDisplay${0}.textContent = value; // Aktualisiere Wertanzeige
+                    
+                    // Falls bereits ein Timer läuft, diesen zurücksetzen
+                    clearTimeout(slider${0}Timeout);
+                    
+                    // Neuen Timer starten (1 Sekunde Verzögerung)
+                    slider${0}Timeout = setTimeout(() => {
+                        fetch('slider${0}', {
+                            method: 'post',
+                            body: value.toString()
+                        }).catch(console.error);
+                    }, 200);
+                });
+                """, Map.of("0", ID)));
+
         return this;
     }
+
 }
 
 //---------------------------------------Dokumentation-----------------------------------------//
